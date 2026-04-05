@@ -24,6 +24,59 @@ export async function initDb() {
       UNIQUE(therapist_slug, week_start)
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(100) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      therapist_slug VARCHAR(100),
+      role VARCHAR(20) NOT NULL DEFAULT 'therapist',
+      name VARCHAR(200) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  password_hash: string;
+  therapist_slug: string | null;
+  role: string;
+  name: string;
+}
+
+export async function getUserByUsername(username: string): Promise<User | null> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM users WHERE username = ${username.toLowerCase()} LIMIT 1
+  `;
+  return rows.length > 0 ? (rows[0] as unknown as User) : null;
+}
+
+export async function createUser(data: {
+  username: string;
+  password_hash: string;
+  therapist_slug: string | null;
+  role: string;
+  name: string;
+}) {
+  const sql = getDb();
+  await sql`
+    INSERT INTO users (username, password_hash, therapist_slug, role, name)
+    VALUES (${data.username.toLowerCase()}, ${data.password_hash}, ${data.therapist_slug}, ${data.role}, ${data.name})
+    ON CONFLICT (username) DO UPDATE SET
+      password_hash = EXCLUDED.password_hash,
+      therapist_slug = EXCLUDED.therapist_slug,
+      role = EXCLUDED.role,
+      name = EXCLUDED.name
+  `;
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  const sql = getDb();
+  const rows = await sql`SELECT id, username, therapist_slug, role, name, created_at FROM users ORDER BY name`;
+  return rows as unknown as User[];
 }
 
 export interface Submission {

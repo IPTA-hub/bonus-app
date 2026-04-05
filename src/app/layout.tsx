@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SessionProvider from "@/components/SessionProvider";
+import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "Productivity & Bonus Tracker",
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <SessionProvider>
+          <NavBar />
+          {children}
+        </SessionProvider>
+      </body>
     </html>
   );
 }

@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
 import { calculateBonus, getArrivalRate } from "@/lib/bonus";
+import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = (await auth()) as SessionWithRole | null;
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { therapist_slug, week_start, scheduled, seen, is_pto, notes } = body;
 
@@ -12,6 +18,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
+      );
+    }
+
+    // Therapists can only submit for themselves
+    if (
+      session.role === "therapist" &&
+      session.therapist_slug !== therapist_slug
+    ) {
+      return NextResponse.json(
+        { error: "You can only submit data for yourself" },
+        { status: 403 }
       );
     }
 
