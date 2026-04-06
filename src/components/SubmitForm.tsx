@@ -14,7 +14,7 @@ function getMondayOfWeek(date: Date): string {
 
 export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [weekStart, setWeekStart] = useState(getMondayOfWeek(new Date()));
-  const [available, setAvailable] = useState("");
+  const [available, setAvailable] = useState(String(therapist.expectedVisits));
   const [scheduled, setScheduled] = useState("");
   const [seen, setSeen] = useState("");
   const [isPto, setIsPto] = useState(false);
