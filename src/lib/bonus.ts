@@ -12,10 +12,17 @@ export const BONUS_TIERS: BonusTier[] = [
   { min: 0.85, max: 0.8999, amount: 25, label: "85-89.99%" },
 ];
 
+export const UTILIZATION_THRESHOLD = 0.9; // 90% of available must be scheduled
+
 export function calculateBonus(
   arrivalRate: number,
-  proRateFactor: number
+  proRateFactor: number,
+  utilizationRate?: number | null
 ): number {
+  // Must have 90%+ of available appointments scheduled to qualify for bonus
+  if (utilizationRate !== undefined && utilizationRate !== null && utilizationRate < UTILIZATION_THRESHOLD) {
+    return 0;
+  }
   for (const tier of BONUS_TIERS) {
     if (arrivalRate >= tier.min) {
       return Math.round(tier.amount * proRateFactor * 100) / 100;

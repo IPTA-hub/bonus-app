@@ -49,15 +49,16 @@ export async function POST(request: NextRequest) {
     let utilizationRate: number | null = null;
     let bonusAmount = 0;
 
+    // Calculate utilization first — needed for bonus eligibility check
+    if (!pto && avail > 0) {
+      utilizationRate = sched / avail;
+    }
+
     if (!pto && sched > 0) {
       arrivalRate = getArrivalRate(sched, seenCount, avail);
       if (arrivalRate !== null) {
-        bonusAmount = calculateBonus(arrivalRate, therapist.proRateFactor);
+        bonusAmount = calculateBonus(arrivalRate, therapist.proRateFactor, utilizationRate);
       }
-    }
-
-    if (!pto && avail > 0) {
-      utilizationRate = sched / avail;
     }
 
     await upsertSubmission({

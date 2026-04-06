@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Therapist } from "@/lib/therapists";
-import { BONUS_TIERS } from "@/lib/bonus";
+import { BONUS_TIERS, UTILIZATION_THRESHOLD } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -193,12 +193,19 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           {result.arrival_rate !== null ? (
             <div className="space-y-2">
               {result.utilization_rate !== null && (
-                <p className="text-green-800">
-                  Schedule Utilization:{" "}
-                  <span className="font-bold text-xl">
-                    {(result.utilization_rate * 100).toFixed(1)}%
-                  </span>
-                </p>
+                <div>
+                  <p className="text-green-800">
+                    Schedule Utilization:{" "}
+                    <span className="font-bold text-xl">
+                      {(result.utilization_rate * 100).toFixed(1)}%
+                    </span>
+                  </p>
+                  {result.utilization_rate < UTILIZATION_THRESHOLD && (
+                    <p className="text-amber-700 text-sm mt-1">
+                      Must reach {(UTILIZATION_THRESHOLD * 100).toFixed(0)}% utilization to qualify for bonus
+                    </p>
+                  )}
+                </div>
               )}
               <p className="text-green-800">
                 Arrival Rate:{" "}
@@ -223,6 +230,9 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">
           Bonus Tiers {!therapist.isFullTime && `(Pro-rated at ${Math.round(therapist.proRateFactor * 100)}%)`}
         </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Requires {(UTILIZATION_THRESHOLD * 100).toFixed(0)}%+ of available appointments scheduled to qualify
+        </p>
         <div className="grid grid-cols-2 gap-2">
           {BONUS_TIERS.slice().reverse().map((tier) => (
             <div
