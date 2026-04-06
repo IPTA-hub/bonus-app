@@ -51,7 +51,7 @@ export default function TherapistDashboard({
         </div>
       </div>
 
-      <YearlySummary data={data} />
+      <YearlySummary data={data} role={therapist.role} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow p-6">
@@ -98,6 +98,12 @@ export default function TherapistDashboard({
                   <th className="px-6 py-3 font-medium text-gray-500">Utilization</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Seen</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>
+                  {(therapist.role === "OTR" || therapist.role === "SLP") && (
+                    <th className="px-6 py-3 font-medium text-gray-500">Evals</th>
+                  )}
+                  {therapist.role === "OTR" && (
+                    <th className="px-6 py-3 font-medium text-gray-500">w/ Dev Codes</th>
+                  )}
                   <th className="px-6 py-3 font-medium text-gray-500">Bonus</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Notes</th>
                 </tr>
@@ -152,9 +158,19 @@ export default function TherapistDashboard({
                           "-"
                         )}
                       </td>
+                      {(therapist.role === "OTR" || therapist.role === "SLP") && (
+                        <td className="px-6 py-3">
+                          {row.is_pto ? "-" : (row.evals_completed || 0)}
+                        </td>
+                      )}
+                      {therapist.role === "OTR" && (
+                        <td className="px-6 py-3">
+                          {row.is_pto ? "-" : (row.evals_with_dev_codes || 0)}
+                        </td>
+                      )}
                       <td className="px-6 py-3 font-medium">
-                        {Number(row.bonus_amount) > 0
-                          ? `$${Number(row.bonus_amount).toFixed(2)}`
+                        {(Number(row.bonus_amount) + Number(row.eval_bonus || 0)) > 0
+                          ? `$${(Number(row.bonus_amount) + Number(row.eval_bonus || 0)).toFixed(2)}`
                           : "-"}
                       </td>
                       <td className="px-6 py-3 text-gray-500 max-w-48 truncate">

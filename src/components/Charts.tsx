@@ -103,7 +103,7 @@ function aggregateMonthly(data: Submission[]): MonthlyData[] {
     if (!months[key]) months[key] = { totalSeen: 0, totalSched: 0, bonus: 0, weeks: 0 };
     months[key].totalSeen += d.seen;
     months[key].totalSched += d.scheduled;
-    months[key].bonus += Number(d.bonus_amount) || 0;
+    months[key].bonus += (Number(d.bonus_amount) || 0) + (Number(d.eval_bonus) || 0);
     if (d.scheduled > 0) months[key].weeks++;
   }
 
@@ -238,33 +238,58 @@ export function WeeklyUtilizationChart({ data }: WeeklyChartProps) {
   );
 }
 
-export function YearlySummary({ data }: WeeklyChartProps) {
+export function YearlySummary({ data, role }: WeeklyChartProps & { role?: string }) {
   const nonPto = data.filter((d) => !d.is_pto && d.scheduled > 0);
   const totalSched = nonPto.reduce((s, d) => s + d.scheduled, 0);
   const totalSeen = nonPto.reduce((s, d) => s + d.seen, 0);
   const totalAvail = nonPto.reduce((s, d) => s + (d.available || 0), 0);
-  const totalBonus = data.reduce((s, d) => s + (Number(d.bonus_amount) || 0), 0);
+  const totalBonus = data.reduce((s, d) => s + (Number(d.bonus_amount) || 0) + (Number(d.eval_bonus) || 0), 0);
+  const totalEvals = data.reduce((s, d) => s + (d.evals_completed || 0), 0);
+  const totalDevCodeEvals = data.reduce((s, d) => s + (d.evals_with_dev_codes || 0), 0);
   const avgRate = totalSched > 0 ? totalSeen / totalSched : null;
   const avgUtilization = totalAvail > 0 ? totalSched / totalAvail : null;
+  const showEvals = role === "OTR" || role === "SLP";
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div className="bg-white rounded-xl p-4 text-center shadow">
-        <p className="text-sm text-gray-500">YTD Utilization</p>
-        <p className="text-2xl font-bold text-purple-600">{formatPct(avgUtilization)}</p>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-4 text-center shadow">
+          <p className="text-sm text-gray-500">YTD Utilization</p>
+          <p className="text-2xl font-bold text-purple-600">{formatPct(avgUtilization)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 text-center shadow">
+          <p className="text-sm text-gray-500">YTD Arrival Rate</p>
+          <p className="text-2xl font-bold text-gray-900">{formatPct(avgRate)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 text-center shadow">
+          <p className="text-sm text-gray-500">YTD Total Bonus</p>
+          <p className="text-2xl font-bold text-green-600">{formatCurrency(totalBonus)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 text-center shadow">
+          <p className="text-sm text-gray-500">Weeks Worked</p>
+          <p className="text-2xl font-bold text-gray-900">{nonPto.length}</p>
+        </div>
       </div>
-      <div className="bg-white rounded-xl p-4 text-center shadow">
-        <p className="text-sm text-gray-500">YTD Arrival Rate</p>
-        <p className="text-2xl font-bold text-gray-900">{formatPct(avgRate)}</p>
-      </div>
-      <div className="bg-white rounded-xl p-4 text-center shadow">
-        <p className="text-sm text-gray-500">YTD Bonus</p>
-        <p className="text-2xl font-bold text-green-600">{formatCurrency(totalBonus)}</p>
-      </div>
-      <div className="bg-white rounded-xl p-4 text-center shadow">
-        <p className="text-sm text-gray-500">Weeks Worked</p>
-        <p className="text-2xl font-bold text-gray-900">{nonPto.length}</p>
-      </div>
+      {showEvals && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl p-4 text-center shadow">
+            <p className="text-sm text-gray-500">YTD Evals</p>
+            <p className="text-2xl font-bold text-indigo-600">{totalEvals}</p>
+          </div>
+          {role === "OTR" && (
+            <div className="bg-white rounded-xl p-4 text-center shadow">
+              <p className="text-sm text-gray-500">w/ Dev Codes</p>
+              <p className="text-2xl font-bold text-indigo-600">{totalDevCodeEvals}</p>
+            </div>
+          )}
+          <div className="bg-white rounded-xl p-4 text-center shadow">
+            <p className="text-sm text-gray-500">YTD Eval Bonus</p>
+            <p className="text-2xl font-bold text-green-600">
+              {formatCurrency(data.reduce((s, d) => s + (Number(d.eval_bonus) || 0), 0))}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -88,3 +88,19 @@ export function getTierLabel(arrivalRate: number | null): string {
   }
   return "Below 85%";
 }
+
+// Eval bonus: $100 if threshold met
+// OTR: 3+ evals with developmental codes
+// SLP: 3+ evals total
+export const EVAL_BONUS_AMOUNT = 100;
+export const EVAL_BONUS_THRESHOLD = 3;
+
+export function calculateEvalBonus(
+  role: string,
+  evalsCompleted: number,
+  evalsWithDevCodes: number
+): number {
+  if (role === "OTR" && evalsWithDevCodes >= EVAL_BONUS_THRESHOLD) return EVAL_BONUS_AMOUNT;
+  if (role === "SLP" && evalsCompleted >= EVAL_BONUS_THRESHOLD) return EVAL_BONUS_AMOUNT;
+  return 0;
+}

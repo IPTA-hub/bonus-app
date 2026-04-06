@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
-import { calculateBonus, getArrivalRate } from "@/lib/bonus";
+import { calculateBonus, getArrivalRate, calculateEvalBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
     const sched = parseInt(scheduled) || 0;
     const seenCount = parseInt(seen) || 0;
     const pto = Boolean(is_pto);
+    const evalsCount = parseInt(evals_completed) || 0;
+    const evalsDevCodes = parseInt(evals_with_dev_codes) || 0;
 
     let arrivalRate: number | null = null;
     let utilizationRate: number | null = null;
@@ -61,6 +63,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Calculate eval bonus (OTR: 3+ evals with dev codes, SLP: 3+ evals)
+    const evalBonus = pto ? 0 : calculateEvalBonus(therapist.role, evalsCount, evalsDevCodes);
+
     await upsertSubmission({
       therapist_slug,
       week_start,
@@ -72,6 +77,9 @@ export async function POST(request: NextRequest) {
       arrival_rate: arrivalRate,
       utilization_rate: utilizationRate,
       bonus_amount: bonusAmount,
+      evals_completed: evalsCount,
+      evals_with_dev_codes: evalsDevCodes,
+      eval_bonus: evalBonus,
     });
 
     return NextResponse.json({
@@ -79,6 +87,9 @@ export async function POST(request: NextRequest) {
       arrival_rate: arrivalRate,
       utilization_rate: utilizationRate,
       bonus_amount: bonusAmount,
+      evals_completed: evalsCount,
+      evals_with_dev_codes: evalsDevCodes,
+      eval_bonus: evalBonus,
     });
   } catch (error) {
     console.error("Submit error:", error);

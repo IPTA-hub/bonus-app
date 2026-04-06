@@ -50,7 +50,7 @@ function buildSummaries(submissions: Submission[]): TherapistSummary[] {
     const totalSeen = subs.reduce((acc, s) => acc + s.seen, 0);
     const totalAvail = subs.reduce((acc, s) => acc + (s.available || 0), 0);
     const totalBonus = (bySlug[t.slug] || []).reduce(
-      (acc, s) => acc + (Number(s.bonus_amount) || 0),
+      (acc, s) => acc + (Number(s.bonus_amount) || 0) + (Number(s.eval_bonus) || 0),
       0
     );
     return {

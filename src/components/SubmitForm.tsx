@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Therapist } from "@/lib/therapists";
-import { UTILIZATION_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -18,12 +18,17 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [scheduled, setScheduled] = useState("");
   const [seen, setSeen] = useState("");
   const [isPto, setIsPto] = useState(false);
+  const [evalsCompleted, setEvalsCompleted] = useState("");
+  const [evalsWithDevCodes, setEvalsWithDevCodes] = useState("");
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState<{
     success: boolean;
     arrival_rate: number | null;
     utilization_rate: number | null;
     bonus_amount: number;
+    evals_completed: number;
+    evals_with_dev_codes: number;
+    eval_bonus: number;
   } | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +50,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           scheduled: parseInt(scheduled) || 0,
           seen: parseInt(seen) || 0,
           is_pto: isPto,
+          evals_completed: parseInt(evalsCompleted) || 0,
+          evals_with_dev_codes: parseInt(evalsWithDevCodes) || 0,
           notes,
         }),
       });
@@ -155,6 +162,50 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   required={!isPto}
                 />
               </div>
+
+              {/* Eval tracking for OTR and SLP */}
+              {(therapist.role === "OTR" || therapist.role === "SLP") && (
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Evaluations
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Evals Completed This Week
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={evalsCompleted}
+                        onChange={(e) => setEvalsCompleted(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    {therapist.role === "OTR" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Evals with Developmental Test Codes
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={evalsWithDevCodes}
+                          onChange={(e) => setEvalsWithDevCodes(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      {therapist.role === "OTR"
+                        ? `${EVAL_BONUS_THRESHOLD}+ evals with dev codes = $${EVAL_BONUS_AMOUNT} bonus`
+                        : `${EVAL_BONUS_THRESHOLD}+ evals = $${EVAL_BONUS_AMOUNT} bonus`}
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -214,9 +265,23 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                 </span>
               </p>
               <p className="text-green-800">
-                Weekly Bonus:{" "}
+                Arrival Bonus:{" "}
                 <span className="font-bold text-xl">
                   ${result.bonus_amount.toFixed(2)}
+                </span>
+              </p>
+              {result.eval_bonus > 0 && (
+                <p className="text-green-800">
+                  Eval Bonus:{" "}
+                  <span className="font-bold text-xl">
+                    ${result.eval_bonus.toFixed(2)}
+                  </span>
+                </p>
+              )}
+              <p className="text-green-800 border-t border-green-200 pt-2 mt-2">
+                Total Weekly Bonus:{" "}
+                <span className="font-bold text-xl">
+                  ${(result.bonus_amount + (result.eval_bonus || 0)).toFixed(2)}
                 </span>
               </p>
             </div>
