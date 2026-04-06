@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     let bonusAmount = 0;
 
     if (!pto && sched > 0) {
-      arrivalRate = getArrivalRate(sched, seenCount);
+      arrivalRate = getArrivalRate(sched, seenCount, avail);
       if (arrivalRate !== null) {
         bonusAmount = calculateBonus(arrivalRate, therapist.proRateFactor);
       }

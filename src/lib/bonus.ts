@@ -24,9 +24,12 @@ export function calculateBonus(
   return 0;
 }
 
-export function getArrivalRate(scheduled: number, seen: number): number | null {
+export function getArrivalRate(scheduled: number, seen: number, available?: number): number | null {
   if (scheduled <= 0) return null;
-  return seen / scheduled;
+  // When overscheduled (scheduled > available), use available as the denominator
+  // so therapists are rewarded for exceeding their expected capacity
+  const denominator = (available && available > 0 && scheduled > available) ? available : scheduled;
+  return seen / denominator;
 }
 
 export function getTierLabel(arrivalRate: number | null): string {
