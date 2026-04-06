@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       evals_completed: evalsCount,
       evals_with_dev_codes: evalsDevCodes,
       eval_bonus: evalBonus,
+      locations: locations || "",
     });
 
     return NextResponse.json({

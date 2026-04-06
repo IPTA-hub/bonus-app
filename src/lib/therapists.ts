@@ -56,3 +56,6 @@ export const THERAPISTS: Therapist[] = [
 export function getTherapistBySlug(slug: string): Therapist | undefined {
   return THERAPISTS.find((t) => t.slug === slug);
 }
+
+export const LOCATIONS = ["Greeley", "Farm", "Windsor"] as const;
+export type Location = (typeof LOCATIONS)[number];

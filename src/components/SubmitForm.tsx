@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Therapist } from "@/lib/therapists";
+import { LOCATIONS } from "@/lib/therapists";
 import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
@@ -18,6 +19,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [scheduled, setScheduled] = useState("");
   const [seen, setSeen] = useState("");
   const [isPto, setIsPto] = useState(false);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [evalsCompleted, setEvalsCompleted] = useState("");
   const [evalsWithDevCodes, setEvalsWithDevCodes] = useState("");
   const [notes, setNotes] = useState("");
@@ -32,6 +34,12 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   } | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  function toggleLocation(loc: string) {
+    setSelectedLocations((prev) =>
+      prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +60,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           is_pto: isPto,
           evals_completed: parseInt(evalsCompleted) || 0,
           evals_with_dev_codes: parseInt(evalsWithDevCodes) || 0,
+          locations: selectedLocations.join(","),
           notes,
         }),
       });
@@ -111,6 +120,30 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             <label htmlFor="pto" className="text-sm font-medium text-gray-700">
               PTO / Holiday Week
             </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Location(s) Worked This Week
+            </label>
+            <div className="flex gap-4">
+              {LOCATIONS.map((loc) => (
+                <label key={loc} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedLocations.includes(loc)}
+                    onChange={() => toggleLocation(loc)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{loc}</span>
+                </label>
+              ))}
+            </div>
+            {selectedLocations.length > 1 && (
+              <p className="mt-1 text-xs text-gray-500">
+                Data will be split evenly across selected locations
+              </p>
+            )}
           </div>
 
           {!isPto && (
