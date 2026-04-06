@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import NavBar from "@/components/NavBar";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Productivity & Bonus Tracker",
@@ -20,6 +21,7 @@ export default function RootLayout({
           <NavBar />
           {children}
         </SessionProvider>
+        <Analytics />
       </body>
     </html>
   );
