@@ -29,8 +29,10 @@ interface TherapistSummary {
   slug: string;
   role: string;
   avgRate: number | null;
+  avgUtilization: number | null;
   totalBonus: number;
   weeksWorked: number;
+  totalAvailable: number;
   totalScheduled: number;
   totalSeen: number;
 }
@@ -46,6 +48,7 @@ function buildSummaries(submissions: Submission[]): TherapistSummary[] {
     const subs = (bySlug[t.slug] || []).filter((s) => !s.is_pto && s.scheduled > 0);
     const totalSched = subs.reduce((acc, s) => acc + s.scheduled, 0);
     const totalSeen = subs.reduce((acc, s) => acc + s.seen, 0);
+    const totalAvail = subs.reduce((acc, s) => acc + (s.available || 0), 0);
     const totalBonus = (bySlug[t.slug] || []).reduce(
       (acc, s) => acc + (Number(s.bonus_amount) || 0),
       0
@@ -55,8 +58,10 @@ function buildSummaries(submissions: Submission[]): TherapistSummary[] {
       slug: t.slug,
       role: t.role,
       avgRate: totalSched > 0 ? totalSeen / totalSched : null,
+      avgUtilization: totalAvail > 0 ? totalSched / totalAvail : null,
       totalBonus,
       weeksWorked: subs.length,
+      totalAvailable: totalAvail,
       totalScheduled: totalSched,
       totalSeen: totalSeen,
     };
@@ -85,9 +90,11 @@ export default function ClinicDashboard() {
 
   const summaries = buildSummaries(data);
   const withData = summaries.filter((s) => s.avgRate !== null);
+  const clinicAvail = withData.reduce((a, s) => a + s.totalAvailable, 0);
   const clinicSched = withData.reduce((a, s) => a + s.totalScheduled, 0);
   const clinicSeen = withData.reduce((a, s) => a + s.totalSeen, 0);
   const clinicRate = clinicSched > 0 ? clinicSeen / clinicSched : null;
+  const clinicUtilization = clinicAvail > 0 ? clinicSched / clinicAvail : null;
   const clinicBonus = summaries.reduce((a, s) => a + s.totalBonus, 0);
 
   const chartData = withData
@@ -101,7 +108,13 @@ export default function ClinicDashboard() {
   return (
     <div className="space-y-8">
       {/* Clinic-wide stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white rounded-xl p-5 shadow text-center">
+          <p className="text-sm text-gray-500">Schedule Utilization</p>
+          <p className="text-3xl font-bold text-purple-600">
+            {clinicUtilization !== null ? `${(clinicUtilization * 100).toFixed(1)}%` : "N/A"}
+          </p>
+        </div>
         <div className="bg-white rounded-xl p-5 shadow text-center">
           <p className="text-sm text-gray-500">Clinic Arrival Rate</p>
           <p className="text-3xl font-bold text-gray-900">
@@ -172,6 +185,7 @@ export default function ClinicDashboard() {
               <tr className="bg-gray-50 text-left">
                 <th className="px-6 py-3 font-medium text-gray-500">Name</th>
                 <th className="px-6 py-3 font-medium text-gray-500">Role</th>
+                <th className="px-6 py-3 font-medium text-gray-500">Avg Utilization</th>
                 <th className="px-6 py-3 font-medium text-gray-500">Avg Arrival Rate</th>
                 <th className="px-6 py-3 font-medium text-gray-500">Total Bonus</th>
                 <th className="px-6 py-3 font-medium text-gray-500">Weeks</th>
@@ -193,6 +207,15 @@ export default function ClinicDashboard() {
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {s.role}
                     </span>
+                  </td>
+                  <td className="px-6 py-3">
+                    {s.avgUtilization !== null ? (
+                      <span className="font-medium text-purple-600">
+                        {(s.avgUtilization * 100).toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">No data</span>
+                    )}
                   </td>
                   <td className="px-6 py-3">
                     {s.avgRate !== null ? (

@@ -14,6 +14,7 @@ function getMondayOfWeek(date: Date): string {
 
 export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [weekStart, setWeekStart] = useState(getMondayOfWeek(new Date()));
+  const [available, setAvailable] = useState("");
   const [scheduled, setScheduled] = useState("");
   const [seen, setSeen] = useState("");
   const [isPto, setIsPto] = useState(false);
@@ -21,6 +22,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [result, setResult] = useState<{
     success: boolean;
     arrival_rate: number | null;
+    utilization_rate: number | null;
     bonus_amount: number;
   } | null>(null);
   const [error, setError] = useState("");
@@ -39,6 +41,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         body: JSON.stringify({
           therapist_slug: therapist.slug,
           week_start: weekStart,
+          available: parseInt(available) || 0,
           scheduled: parseInt(scheduled) || 0,
           seen: parseInt(seen) || 0,
           is_pto: isPto,
@@ -107,6 +110,24 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Appointments Available
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={available}
+                  onChange={(e) => setAvailable(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g. 45"
+                  required={!isPto}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Total appointment slots open this week
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Patients Scheduled
                 </label>
                 <input
@@ -171,6 +192,14 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           <h3 className="text-lg font-bold text-green-900 mb-3">Submitted!</h3>
           {result.arrival_rate !== null ? (
             <div className="space-y-2">
+              {result.utilization_rate !== null && (
+                <p className="text-green-800">
+                  Schedule Utilization:{" "}
+                  <span className="font-bold text-xl">
+                    {(result.utilization_rate * 100).toFixed(1)}%
+                  </span>
+                </p>
+              )}
               <p className="text-green-800">
                 Arrival Rate:{" "}
                 <span className="font-bold text-xl">

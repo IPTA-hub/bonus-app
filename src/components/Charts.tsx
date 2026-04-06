@@ -186,15 +186,73 @@ export function MonthlyBonusChart({ data }: WeeklyChartProps) {
   );
 }
 
+export function WeeklyUtilizationChart({ data }: WeeklyChartProps) {
+  const chartData = data
+    .filter((d) => !d.is_pto && d.utilization_rate !== null && d.utilization_rate !== undefined)
+    .map((d) => ({
+      week: new Date(d.week_start).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      rate: Number(d.utilization_rate),
+      available: d.available,
+      scheduled: d.scheduled,
+    }));
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-gray-400">
+        No utilization data yet
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+        <YAxis
+          tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+          domain={[0, 1.2]}
+          tick={{ fontSize: 12 }}
+        />
+        <Tooltip
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter={(value: any, name: any) => {
+            if (name === "rate") return [formatPct(Number(value)), "Utilization"];
+            return [value, name];
+          }}
+        />
+        <ReferenceLine y={1.0} stroke="#16a34a" strokeDasharray="5 5" label={{ value: "100%", position: "right", fontSize: 11 }} />
+        <Line
+          type="monotone"
+          dataKey="rate"
+          stroke="#8b5cf6"
+          strokeWidth={2.5}
+          dot={{ r: 4, fill: "#8b5cf6" }}
+          activeDot={{ r: 6 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function YearlySummary({ data }: WeeklyChartProps) {
   const nonPto = data.filter((d) => !d.is_pto && d.scheduled > 0);
   const totalSched = nonPto.reduce((s, d) => s + d.scheduled, 0);
   const totalSeen = nonPto.reduce((s, d) => s + d.seen, 0);
+  const totalAvail = nonPto.reduce((s, d) => s + (d.available || 0), 0);
   const totalBonus = data.reduce((s, d) => s + (Number(d.bonus_amount) || 0), 0);
   const avgRate = totalSched > 0 ? totalSeen / totalSched : null;
+  const avgUtilization = totalAvail > 0 ? totalSched / totalAvail : null;
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-white rounded-xl p-4 text-center shadow">
+        <p className="text-sm text-gray-500">YTD Utilization</p>
+        <p className="text-2xl font-bold text-purple-600">{formatPct(avgUtilization)}</p>
+      </div>
       <div className="bg-white rounded-xl p-4 text-center shadow">
         <p className="text-sm text-gray-500">YTD Arrival Rate</p>
         <p className="text-2xl font-bold text-gray-900">{formatPct(avgRate)}</p>

@@ -5,6 +5,7 @@ import type { Submission } from "@/lib/db";
 import type { Therapist } from "@/lib/therapists";
 import {
   WeeklyArrivalChart,
+  WeeklyUtilizationChart,
   MonthlyArrivalChart,
   MonthlyBonusChart,
   YearlySummary,
@@ -52,11 +53,19 @@ export default function TherapistDashboard({
 
       <YearlySummary data={data} />
 
-      <div className="bg-white rounded-xl shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Weekly Arrival Rate
-        </h3>
-        <WeeklyArrivalChart data={data} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Weekly Schedule Utilization
+          </h3>
+          <WeeklyUtilizationChart data={data} />
+        </div>
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Weekly Arrival Rate
+          </h3>
+          <WeeklyArrivalChart data={data} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -84,7 +93,9 @@ export default function TherapistDashboard({
               <thead>
                 <tr className="bg-gray-50 text-left">
                   <th className="px-6 py-3 font-medium text-gray-500">Week</th>
+                  <th className="px-6 py-3 font-medium text-gray-500">Available</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>
+                  <th className="px-6 py-3 font-medium text-gray-500">Utilization</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Seen</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Bonus</th>
@@ -105,10 +116,22 @@ export default function TherapistDashboard({
                         })}
                       </td>
                       <td className="px-6 py-3">
+                        {row.is_pto ? "-" : (row.available || "-")}
+                      </td>
+                      <td className="px-6 py-3">
                         {row.is_pto ? (
                           <span className="text-amber-600 font-medium">PTO</span>
                         ) : (
                           row.scheduled
+                        )}
+                      </td>
+                      <td className="px-6 py-3">
+                        {row.utilization_rate !== null && row.utilization_rate !== undefined ? (
+                          <span className="font-medium text-purple-600">
+                            {(Number(row.utilization_rate) * 100).toFixed(1)}%
+                          </span>
+                        ) : (
+                          "-"
                         )}
                       </td>
                       <td className="px-6 py-3">{row.is_pto ? "-" : row.seen}</td>

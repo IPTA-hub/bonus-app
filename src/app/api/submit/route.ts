@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, scheduled, seen, is_pto, notes } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -40,11 +40,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const avail = parseInt(available) || 0;
     const sched = parseInt(scheduled) || 0;
     const seenCount = parseInt(seen) || 0;
     const pto = Boolean(is_pto);
 
     let arrivalRate: number | null = null;
+    let utilizationRate: number | null = null;
     let bonusAmount = 0;
 
     if (!pto && sched > 0) {
@@ -54,20 +56,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!pto && avail > 0) {
+      utilizationRate = sched / avail;
+    }
+
     await upsertSubmission({
       therapist_slug,
       week_start,
+      available: avail,
       scheduled: sched,
       seen: seenCount,
       is_pto: pto,
       notes: notes || "",
       arrival_rate: arrivalRate,
+      utilization_rate: utilizationRate,
       bonus_amount: bonusAmount,
     });
 
     return NextResponse.json({
       success: true,
       arrival_rate: arrivalRate,
+      utilization_rate: utilizationRate,
       bonus_amount: bonusAmount,
     });
   } catch (error) {

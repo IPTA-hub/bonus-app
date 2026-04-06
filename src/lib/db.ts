@@ -13,17 +13,22 @@ export async function initDb() {
       id SERIAL PRIMARY KEY,
       therapist_slug VARCHAR(100) NOT NULL,
       week_start DATE NOT NULL,
+      available INTEGER NOT NULL DEFAULT 0,
       scheduled INTEGER NOT NULL,
       seen INTEGER NOT NULL,
       is_pto BOOLEAN NOT NULL DEFAULT FALSE,
       notes TEXT DEFAULT '',
       arrival_rate DECIMAL(6,4),
+      utilization_rate DECIMAL(6,4),
       bonus_amount DECIMAL(8,2),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(therapist_slug, week_start)
     )
   `;
+  // Add columns for existing databases that don't have them yet
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS available INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS utilization_rate DECIMAL(6,4)`;
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -83,11 +88,13 @@ export interface Submission {
   id: number;
   therapist_slug: string;
   week_start: string;
+  available: number;
   scheduled: number;
   seen: number;
   is_pto: boolean;
   notes: string;
   arrival_rate: number | null;
+  utilization_rate: number | null;
   bonus_amount: number | null;
   created_at: string;
 }
@@ -95,24 +102,28 @@ export interface Submission {
 export async function upsertSubmission(data: {
   therapist_slug: string;
   week_start: string;
+  available: number;
   scheduled: number;
   seen: number;
   is_pto: boolean;
   notes: string;
   arrival_rate: number | null;
+  utilization_rate: number | null;
   bonus_amount: number;
 }) {
   const sql = getDb();
   await sql`
-    INSERT INTO submissions (therapist_slug, week_start, scheduled, seen, is_pto, notes, arrival_rate, bonus_amount, updated_at)
-    VALUES (${data.therapist_slug}, ${data.week_start}, ${data.scheduled}, ${data.seen}, ${data.is_pto}, ${data.notes}, ${data.arrival_rate}, ${data.bonus_amount}, CURRENT_TIMESTAMP)
+    INSERT INTO submissions (therapist_slug, week_start, available, scheduled, seen, is_pto, notes, arrival_rate, utilization_rate, bonus_amount, updated_at)
+    VALUES (${data.therapist_slug}, ${data.week_start}, ${data.available}, ${data.scheduled}, ${data.seen}, ${data.is_pto}, ${data.notes}, ${data.arrival_rate}, ${data.utilization_rate}, ${data.bonus_amount}, CURRENT_TIMESTAMP)
     ON CONFLICT (therapist_slug, week_start)
     DO UPDATE SET
+      available = EXCLUDED.available,
       scheduled = EXCLUDED.scheduled,
       seen = EXCLUDED.seen,
       is_pto = EXCLUDED.is_pto,
       notes = EXCLUDED.notes,
       arrival_rate = EXCLUDED.arrival_rate,
+      utilization_rate = EXCLUDED.utilization_rate,
       bonus_amount = EXCLUDED.bonus_amount,
       updated_at = CURRENT_TIMESTAMP
   `;
