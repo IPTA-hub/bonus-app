@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Therapist } from "@/lib/therapists";
-import { BONUS_TIERS, UTILIZATION_THRESHOLD } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -228,20 +228,20 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
 
       <div className="bg-gray-50 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">
-          Bonus Tiers {!therapist.isFullTime && `(Pro-rated at ${Math.round(therapist.proRateFactor * 100)}%)`}
+          Bonus Tiers — {getHoursTierLabel(getHoursTier(therapist.hoursPerWeek))}
         </h3>
         <p className="text-xs text-gray-500 mb-3">
           Requires {(UTILIZATION_THRESHOLD * 100).toFixed(0)}%+ of available appointments scheduled to qualify
         </p>
         <div className="grid grid-cols-2 gap-2">
-          {BONUS_TIERS.slice().reverse().map((tier) => (
+          {getBonusTiersForHours(therapist.hoursPerWeek).slice().reverse().map((tier) => (
             <div
               key={tier.label}
               className="flex justify-between items-center px-3 py-2 bg-white rounded-lg"
             >
               <span className="text-sm text-gray-600">{tier.label}</span>
               <span className="font-semibold text-gray-900">
-                ${(tier.amount * therapist.proRateFactor).toFixed(2)}
+                ${tier.amount}
               </span>
             </div>
           ))}
