@@ -13,6 +13,7 @@ export interface Therapist {
 }
 
 const FT_HOURS = 32;
+const PRORATE_BASE = 40; // Pro-rate factor based on 40-hour work week
 
 function makeTherapist(
   name: string,
@@ -33,7 +34,7 @@ function makeTherapist(
     role,
     hoursPerWeek: hours,
     isFullTime,
-    proRateFactor: isFullTime ? 1.0 : Math.round((hours / FT_HOURS) * 10000) / 10000,
+    proRateFactor: isFullTime ? 1.0 : Math.round((hours / PRORATE_BASE) * 10000) / 10000,
     expectedVisits,
     isClinicalDirector: opts?.isClinicalDirector || false,
     directorLocation: opts?.directorLocation,
