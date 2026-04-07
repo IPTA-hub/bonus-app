@@ -231,3 +231,61 @@ export function getRetentionBonus(yearsOfService: number): number {
   }
   return 0;
 }
+
+// ============================================================
+// NICOLE SUMMERSON — DIRECTOR BONUS STRUCTURE
+// ============================================================
+
+// --- Bonus 1: Recruitment (as applicable) ---
+// Position filled within 30 days of opening = $100
+// Attended job fair or hosted recruiting event = $100
+export const RECRUITMENT_BONUS_AMOUNT = 100;
+
+export function calculateRecruitmentBonus(
+  positionsFilled: number,
+  recruitingEvents: number
+): number {
+  return (positionsFilled + recruitingEvents) * RECRUITMENT_BONUS_AMOUNT;
+}
+
+// --- Bonus 2: Company-Wide Productivity (weekly) ---
+// Based on the entire clinic's arrival rate for the week
+export const COMPANY_PRODUCTIVITY_TIERS: (BonusTier & { amount: number })[] = [
+  { min: 0.95, max: Infinity, amount: 100, label: "95%+" },
+  { min: 0.90, max: 0.9499, amount: 75, label: "90-94.99%" },
+  { min: 0.85, max: 0.8999, amount: 50, label: "85-89.99%" },
+  { min: 0.80, max: 0.8499, amount: 25, label: "80-84.99%" },
+];
+
+export function calculateCompanyProductivityBonus(
+  companyArrivalRate: number
+): number {
+  for (const tier of COMPANY_PRODUCTIVITY_TIERS) {
+    if (companyArrivalRate >= tier.min) {
+      return tier.amount;
+    }
+  }
+  return 0;
+}
+
+// --- Bonus 3: Individual Productivity (min 5 patients/week) ---
+export const NICOLE_MIN_PATIENTS = 5;
+
+export const NICOLE_INDIVIDUAL_TIERS: (BonusTier & { amount: number })[] = [
+  { min: 1.1, max: Infinity, amount: 125, label: "110%+" },
+  { min: 1.0, max: 1.0999, amount: 100, label: "100-109.99%" },
+  { min: 0.95, max: 0.9999, amount: 50, label: "95-99.99%" },
+];
+
+export function calculateNicoleIndividualBonus(
+  arrivalRate: number,
+  seenCount: number
+): number {
+  if (seenCount < NICOLE_MIN_PATIENTS) return 0;
+  for (const tier of NICOLE_INDIVIDUAL_TIERS) {
+    if (arrivalRate >= tier.min) {
+      return tier.amount;
+    }
+  }
+  return 0;
+}

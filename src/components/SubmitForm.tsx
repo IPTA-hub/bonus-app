@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
-import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -34,6 +34,11 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [evalsCompleted, setEvalsCompleted] = useState("");
   const [evalsWithDevCodes, setEvalsWithDevCodes] = useState("");
   const [notes, setNotes] = useState("");
+  // Recruitment fields (Nicole Summerson only)
+  const [recruitmentHires, setRecruitmentHires] = useState("");
+  const [recruitmentEvents, setRecruitmentEvents] = useState("");
+  const isDirector = therapist.role === "Director";
+
   const [result, setResult] = useState<{
     success: boolean;
     arrival_rate: number | null;
@@ -42,6 +47,9 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     evals_completed: number;
     evals_with_dev_codes: number;
     eval_bonus: number;
+    recruitment_hires?: number;
+    recruitment_events?: number;
+    recruitment_bonus?: number;
   } | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -147,6 +155,10 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
       setLocationEntries({});
     }
 
+    // Load recruitment data for Nicole
+    setRecruitmentHires(String(submission.recruitment_hires || ""));
+    setRecruitmentEvents(String(submission.recruitment_events || ""));
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -161,6 +173,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setLocationEntries({});
     setEvalsCompleted("");
     setEvalsWithDevCodes("");
+    setRecruitmentHires("");
+    setRecruitmentEvents("");
     setNotes("");
     setResult(null);
     setError("");
@@ -210,6 +224,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         evals_with_dev_codes: parseInt(evalsWithDevCodes) || 0,
         locations: selectedLocations.join(","),
         notes,
+        recruitment_hires: isDirector ? (parseInt(recruitmentHires) || 0) : 0,
+        recruitment_events: isDirector ? (parseInt(recruitmentEvents) || 0) : 0,
       };
 
       if (isMultiLocation) {
@@ -529,6 +545,46 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   </div>
                 </div>
               )}
+
+              {/* Recruitment tracking for Nicole Summerson */}
+              {isDirector && (
+                <div className="border-t border-gray-200 pt-4 mt-2">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    Recruitment Bonus
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Positions Filled Within 30 Days
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={recruitmentHires}
+                        onChange={(e) => setRecruitmentHires(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Job Fairs / Recruiting Events Attended
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={recruitmentEvents}
+                        onChange={(e) => setRecruitmentEvents(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      ${RECRUITMENT_BONUS_AMOUNT} per position filled + ${RECRUITMENT_BONUS_AMOUNT} per recruiting event
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -607,11 +663,28 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   </span>
                 </p>
               )}
+              {(result.recruitment_bonus || 0) > 0 && (
+                <p className="text-green-800">
+                  Recruitment Bonus:{" "}
+                  <span className="font-bold text-xl">
+                    ${(result.recruitment_bonus || 0).toFixed(2)}
+                  </span>
+                  <span className="text-sm ml-2">
+                    ({result.recruitment_hires || 0} hire{(result.recruitment_hires || 0) !== 1 ? "s" : ""}, {result.recruitment_events || 0} event{(result.recruitment_events || 0) !== 1 ? "s" : ""})
+                  </span>
+                </p>
+              )}
+              {isDirector && (
+                <p className="text-blue-700 text-sm mt-1">
+                  Company productivity bonus calculated on your dashboard
+                </p>
+              )}
               <p className="text-green-800 border-t border-green-200 pt-2 mt-2">
                 Total Weekly Bonus:{" "}
                 <span className="font-bold text-xl">
-                  ${(result.bonus_amount + (result.eval_bonus || 0)).toFixed(2)}
+                  ${(result.bonus_amount + (result.eval_bonus || 0) + (result.recruitment_bonus || 0)).toFixed(2)}
                 </span>
+                {isDirector && <span className="text-sm ml-1">(+ company bonus)</span>}
               </p>
             </div>
           ) : (
@@ -646,7 +719,72 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               </p>
             )}
           </>
-        ) : therapist.role !== "Director" ? (
+        ) : isDirector ? (
+          /* ---- Nicole Summerson's 3 Bonus Structures ---- */
+          <div className="space-y-4">
+            {/* Bonus 1: Recruitment */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+                Recruitment Bonus
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">Position filled in 30 days</span>
+                  <span className="font-semibold text-gray-900">${RECRUITMENT_BONUS_AMOUNT}</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">Job fair / recruiting event</span>
+                  <span className="font-semibold text-gray-900">${RECRUITMENT_BONUS_AMOUNT}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bonus 2: Company Productivity */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">2</span>
+                Company Productivity
+              </h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Based on clinic-wide arrival rate (calculated on dashboard)
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {COMPANY_PRODUCTIVITY_TIERS.slice().reverse().map((tier) => (
+                  <div
+                    key={tier.label}
+                    className="flex justify-between items-center px-3 py-2 bg-white rounded-lg"
+                  >
+                    <span className="text-sm text-gray-600">{tier.label}</span>
+                    <span className="font-semibold text-gray-900">${tier.amount}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Bonus 3: Individual Productivity */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">3</span>
+                Individual Productivity
+              </h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Minimum {NICOLE_MIN_PATIENTS} patients seen per week to qualify
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {NICOLE_INDIVIDUAL_TIERS.slice().reverse().map((tier) => (
+                  <div
+                    key={tier.label}
+                    className="flex justify-between items-center px-3 py-2 bg-white rounded-lg"
+                  >
+                    <span className="text-sm text-gray-600">{tier.label}</span>
+                    <span className="font-semibold text-gray-900">${tier.amount}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
           <>
             <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">
               Bonus Tiers — {getHoursTierLabel(getHoursTier(therapist.hoursPerWeek))}
@@ -666,7 +804,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               ))}
             </div>
           </>
-        ) : null}
+        )}
       </div>
 
       {/* Submission History with Edit/Delete */}

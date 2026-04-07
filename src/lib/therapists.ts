@@ -98,7 +98,7 @@ export const THERAPISTS: Therapist[] = [
   makeTherapist("Nicole Summerson", "Director", 40, 0, {
     isClinicalDirector: false,
     hireDate: "2018-10-11",
-    workLocations: [],
+    workLocations: ["Greeley", "Farm", "Windsor"],
   }),
 ];
 

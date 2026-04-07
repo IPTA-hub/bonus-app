@@ -10,6 +10,7 @@ import {
   MonthlyBonusChart,
   YearlySummary,
 } from "./Charts";
+import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT } from "@/lib/bonus";
 
 export default function TherapistDashboard({
   therapist,
@@ -19,20 +20,44 @@ export default function TherapistDashboard({
   userRole?: string;
 }) {
   const [data, setData] = useState<Submission[]>([]);
+  const [allData, setAllData] = useState<Submission[]>([]); // All clinic submissions for company bonus
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
   const canModify = userRole === "admin" || userRole === "therapist" || userRole === "director";
+  const isDirector = therapist.role === "Director";
 
   useEffect(() => {
-    fetch(`/api/data?slug=${therapist.slug}`)
-      .then((r) => r.json())
-      .then((d) => setData(Array.isArray(d) ? d : []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, [therapist.slug]);
+    const fetches = [
+      fetch(`/api/data?slug=${therapist.slug}`)
+        .then((r) => r.json())
+        .then((d) => setData(Array.isArray(d) ? d : []))
+        .catch(() => setData([])),
+    ];
+    // For Nicole, also fetch all submissions to calculate company-wide rate
+    if (isDirector) {
+      fetches.push(
+        fetch("/api/data")
+          .then((r) => r.json())
+          .then((d) => setAllData(Array.isArray(d) ? d : []))
+          .catch(() => setAllData([]))
+      );
+    }
+    Promise.all(fetches).finally(() => setLoading(false));
+  }, [therapist.slug, isDirector]);
+
+  // Calculate company-wide arrival rate per week (for Nicole's company bonus)
+  function getCompanyRateForWeek(weekStart: string): number | null {
+    const weekSubs = allData.filter(
+      (s) => s.week_start === weekStart && !s.is_pto && s.scheduled > 0
+    );
+    if (weekSubs.length === 0) return null;
+    const totalSched = weekSubs.reduce((a, s) => a + s.scheduled, 0);
+    const totalSeen = weekSubs.reduce((a, s) => a + s.seen, 0);
+    return totalSched > 0 ? totalSeen / totalSched : null;
+  }
 
   async function handleDelete(weekDate: string) {
     setDeleting(true);
@@ -86,6 +111,54 @@ export default function TherapistDashboard({
       </div>
 
       <YearlySummary data={data} role={therapist.role} />
+
+      {/* Nicole Summerson — Director Bonus Summary */}
+      {isDirector && data.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Director Bonus Breakdown</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-emerald-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-emerald-600 font-medium uppercase">Recruitment</p>
+              <p className="text-xl font-bold text-emerald-700">
+                ${data.reduce((a, s) => a + (Number(s.recruitment_bonus) || 0), 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-emerald-500 mt-1">
+                {data.reduce((a, s) => a + (Number(s.recruitment_hires) || 0), 0)} hires, {data.reduce((a, s) => a + (Number(s.recruitment_events) || 0), 0)} events
+              </p>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-purple-600 font-medium uppercase">Company Productivity</p>
+              <p className="text-xl font-bold text-purple-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  const rate = getCompanyRateForWeek(s.week_start);
+                  return a + (rate !== null ? calculateCompanyProductivityBonus(rate) : 0);
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-purple-500 mt-1">Based on clinic-wide arrival rate</p>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-blue-600 font-medium uppercase">Individual</p>
+              <p className="text-xl font-bold text-blue-700">
+                ${data.reduce((a, s) => a + (Number(s.bonus_amount) || 0), 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-blue-500 mt-1">Arrival rate bonus</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
+              <p className="text-xl font-bold text-green-700">
+                ${(
+                  data.reduce((a, s) => a + (Number(s.bonus_amount) || 0) + (Number(s.recruitment_bonus) || 0), 0) +
+                  data.filter((s) => !s.is_pto).reduce((a, s) => {
+                    const rate = getCompanyRateForWeek(s.week_start);
+                    return a + (rate !== null ? calculateCompanyProductivityBonus(rate) : 0);
+                  }, 0)
+                ).toFixed(0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">All 3 bonuses combined</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow p-6">
@@ -143,6 +216,12 @@ export default function TherapistDashboard({
                   )}
                   {therapist.role === "OTR" && (
                     <th className="px-6 py-3 font-medium text-gray-500">w/ Dev Codes</th>
+                  )}
+                  {isDirector && (
+                    <th className="px-6 py-3 font-medium text-gray-500">Recruit</th>
+                  )}
+                  {isDirector && (
+                    <th className="px-6 py-3 font-medium text-gray-500">Co. Rate</th>
                   )}
                   <th className="px-6 py-3 font-medium text-gray-500">Bonus</th>
                   <th className="px-6 py-3 font-medium text-gray-500">Notes</th>
@@ -216,10 +295,38 @@ export default function TherapistDashboard({
                             {row.is_pto ? "-" : (row.evals_with_dev_codes || 0)}
                           </td>
                         )}
+                        {isDirector && (
+                          <td className="px-6 py-3 text-emerald-600 font-medium">
+                            {row.is_pto ? "-" : (
+                              (Number(row.recruitment_bonus) || 0) > 0
+                                ? `$${Number(row.recruitment_bonus).toFixed(0)}`
+                                : "-"
+                            )}
+                          </td>
+                        )}
+                        {isDirector && (() => {
+                          const compRate = !row.is_pto ? getCompanyRateForWeek(row.week_start) : null;
+                          const compBonus = compRate !== null ? calculateCompanyProductivityBonus(compRate) : 0;
+                          return (
+                            <td className="px-6 py-3">
+                              {compRate !== null ? (
+                                <span className="text-purple-600 font-medium">
+                                  {(compRate * 100).toFixed(1)}%
+                                  {compBonus > 0 && <span className="text-green-600 ml-1">(${compBonus})</span>}
+                                </span>
+                              ) : "-"}
+                            </td>
+                          );
+                        })()}
                         <td className="px-6 py-3 font-medium">
-                          {(Number(row.bonus_amount) + Number(row.eval_bonus || 0)) > 0
-                            ? `$${(Number(row.bonus_amount) + Number(row.eval_bonus || 0)).toFixed(2)}`
-                            : "-"}
+                          {(() => {
+                            let total = Number(row.bonus_amount) + Number(row.eval_bonus || 0) + Number(row.recruitment_bonus || 0);
+                            if (isDirector && !row.is_pto) {
+                              const compRate = getCompanyRateForWeek(row.week_start);
+                              if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
+                            }
+                            return total > 0 ? `$${total.toFixed(2)}` : "-";
+                          })()}
                         </td>
                         <td className="px-6 py-3 text-gray-500 max-w-48 truncate">
                           {row.notes || ""}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission, deleteSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
-import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus } from "@/lib/bonus";
+import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data, recruitment_hires, recruitment_events } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -78,7 +78,10 @@ export async function POST(request: NextRequest) {
     if (!pto && sched > 0) {
       arrivalRate = getArrivalRate(sched, seenCount, avail);
       if (arrivalRate !== null) {
-        if (therapist.isClinicalDirector) {
+        if (therapist.role === "Director") {
+          // Nicole Summerson — individual productivity bonus (Bonus 3)
+          bonusAmount = calculateNicoleIndividualBonus(arrivalRate, seenCount);
+        } else if (therapist.isClinicalDirector) {
           // Clinical directors use their own individual bonus tiers
           bonusAmount = calculateCDIndividualBonus(arrivalRate, seenCount);
         } else {
@@ -89,6 +92,13 @@ export async function POST(request: NextRequest) {
 
     // Calculate eval bonus (OTR: 3+ evals with dev codes, SLP: 3+ evals)
     const evalBonus = pto ? 0 : calculateEvalBonus(therapist.role, evalsCount, evalsDevCodes);
+
+    // Calculate recruitment bonus (Nicole Summerson only)
+    const recHires = parseInt(String(recruitment_hires)) || 0;
+    const recEvents = parseInt(String(recruitment_events)) || 0;
+    const recruitmentBonus = (therapist.role === "Director" && !pto)
+      ? calculateRecruitmentBonus(recHires, recEvents)
+      : 0;
 
     await upsertSubmission({
       therapist_slug,
@@ -106,6 +116,9 @@ export async function POST(request: NextRequest) {
       eval_bonus: evalBonus,
       locations: locations || "",
       location_data: locationDataStr,
+      recruitment_hires: recHires,
+      recruitment_events: recEvents,
+      recruitment_bonus: recruitmentBonus,
     });
 
     return NextResponse.json({
@@ -116,6 +129,9 @@ export async function POST(request: NextRequest) {
       evals_completed: evalsCount,
       evals_with_dev_codes: evalsDevCodes,
       eval_bonus: evalBonus,
+      recruitment_hires: recHires,
+      recruitment_events: recEvents,
+      recruitment_bonus: recruitmentBonus,
     });
   } catch (error) {
     console.error("Submit error:", error);
