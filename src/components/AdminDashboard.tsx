@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import type { Submission } from "@/lib/db";
 import { THERAPISTS, LOCATIONS } from "@/lib/therapists";
+import ClinicalDirectorDashboard from "./ClinicalDirectorDashboard";
 
 function getBarColor(rate: number): string {
   if (rate >= 1.0) return "#16a34a";
@@ -207,7 +208,7 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
 
 // ---- Tab Components ----
 
-type Tab = "staff" | "discipline" | "location";
+type Tab = "staff" | "discipline" | "location" | "directors";
 
 function StaffView({ summaries }: { summaries: StaffSummary[] }) {
   const withData = summaries.filter((s) => s.avgRate !== null);
@@ -555,6 +556,7 @@ export default function AdminDashboard() {
     { key: "staff", label: "By Staff" },
     { key: "discipline", label: "By Discipline" },
     { key: "location", label: "By Location" },
+    { key: "directors", label: "Clinical Directors" },
   ];
 
   return (
@@ -606,6 +608,7 @@ export default function AdminDashboard() {
       {activeTab === "staff" && <StaffView summaries={staffSummaries} />}
       {activeTab === "discipline" && <DisciplineView summaries={disciplineSummaries} />}
       {activeTab === "location" && <LocationView summaries={locationSummaries} />}
+      {activeTab === "directors" && <ClinicalDirectorDashboard />}
     </div>
   );
 }

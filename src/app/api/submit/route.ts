@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
-import { calculateBonus, getArrivalRate, calculateEvalBonus } from "@/lib/bonus";
+import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -59,7 +59,12 @@ export async function POST(request: NextRequest) {
     if (!pto && sched > 0) {
       arrivalRate = getArrivalRate(sched, seenCount, avail);
       if (arrivalRate !== null) {
-        bonusAmount = calculateBonus(arrivalRate, therapist.hoursPerWeek, utilizationRate);
+        if (therapist.isClinicalDirector) {
+          // Clinical directors use their own individual bonus tiers
+          bonusAmount = calculateCDIndividualBonus(arrivalRate, seenCount);
+        } else {
+          bonusAmount = calculateBonus(arrivalRate, therapist.hoursPerWeek, utilizationRate);
+        }
       }
     }
 
