@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -40,9 +40,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const avail = parseInt(available) || 0;
-    const sched = parseInt(scheduled) || 0;
-    const seenCount = parseInt(seen) || 0;
+    // If location_data is provided (per-location breakdown), compute totals from it
+    let avail: number;
+    let sched: number;
+    let seenCount: number;
+    let locationDataStr = "";
+
+    if (location_data && typeof location_data === "object" && Object.keys(location_data).length > 0) {
+      // Sum up per-location values for the totals
+      avail = 0;
+      sched = 0;
+      seenCount = 0;
+      for (const loc of Object.values(location_data) as { available: number; scheduled: number; seen: number }[]) {
+        avail += parseInt(String(loc.available)) || 0;
+        sched += parseInt(String(loc.scheduled)) || 0;
+        seenCount += parseInt(String(loc.seen)) || 0;
+      }
+      locationDataStr = JSON.stringify(location_data);
+    } else {
+      avail = parseInt(available) || 0;
+      sched = parseInt(scheduled) || 0;
+      seenCount = parseInt(seen) || 0;
+    }
     const pto = Boolean(is_pto);
     const evalsCount = parseInt(evals_completed) || 0;
     const evalsDevCodes = parseInt(evals_with_dev_codes) || 0;
@@ -86,6 +105,7 @@ export async function POST(request: NextRequest) {
       evals_with_dev_codes: evalsDevCodes,
       eval_bonus: evalBonus,
       locations: locations || "",
+      location_data: locationDataStr,
     });
 
     return NextResponse.json({

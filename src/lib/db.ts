@@ -33,6 +33,7 @@ export async function initDb() {
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS evals_with_dev_codes INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS eval_bonus DECIMAL(8,2) NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS locations TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS location_data TEXT NOT NULL DEFAULT ''`;
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -104,6 +105,7 @@ export interface Submission {
   evals_with_dev_codes: number;
   eval_bonus: number;
   locations: string;
+  location_data: string; // JSON: { "Windsor": { available, scheduled, seen }, ... }
   created_at: string;
 }
 
@@ -122,11 +124,12 @@ export async function upsertSubmission(data: {
   evals_with_dev_codes: number;
   eval_bonus: number;
   locations: string;
+  location_data: string;
 }) {
   const sql = getDb();
   await sql`
-    INSERT INTO submissions (therapist_slug, week_start, available, scheduled, seen, is_pto, notes, arrival_rate, utilization_rate, bonus_amount, evals_completed, evals_with_dev_codes, eval_bonus, locations, updated_at)
-    VALUES (${data.therapist_slug}, ${data.week_start}, ${data.available}, ${data.scheduled}, ${data.seen}, ${data.is_pto}, ${data.notes}, ${data.arrival_rate}, ${data.utilization_rate}, ${data.bonus_amount}, ${data.evals_completed}, ${data.evals_with_dev_codes}, ${data.eval_bonus}, ${data.locations}, CURRENT_TIMESTAMP)
+    INSERT INTO submissions (therapist_slug, week_start, available, scheduled, seen, is_pto, notes, arrival_rate, utilization_rate, bonus_amount, evals_completed, evals_with_dev_codes, eval_bonus, locations, location_data, updated_at)
+    VALUES (${data.therapist_slug}, ${data.week_start}, ${data.available}, ${data.scheduled}, ${data.seen}, ${data.is_pto}, ${data.notes}, ${data.arrival_rate}, ${data.utilization_rate}, ${data.bonus_amount}, ${data.evals_completed}, ${data.evals_with_dev_codes}, ${data.eval_bonus}, ${data.locations}, ${data.location_data}, CURRENT_TIMESTAMP)
     ON CONFLICT (therapist_slug, week_start)
     DO UPDATE SET
       available = EXCLUDED.available,
@@ -141,6 +144,7 @@ export async function upsertSubmission(data: {
       evals_with_dev_codes = EXCLUDED.evals_with_dev_codes,
       eval_bonus = EXCLUDED.eval_bonus,
       locations = EXCLUDED.locations,
+      location_data = EXCLUDED.location_data,
       updated_at = CURRENT_TIMESTAMP
   `;
 }

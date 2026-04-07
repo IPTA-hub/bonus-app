@@ -52,11 +52,34 @@ function calculateWeeklyTeamData(
     const locs = s.locations.split(",").filter(Boolean);
     if (!locs.includes(location)) continue;
 
-    const locCount = locs.length;
     const week = s.week_start;
     if (!byWeek[week]) byWeek[week] = { sched: 0, seen: 0 };
-    byWeek[week].sched += s.scheduled / locCount;
-    byWeek[week].seen += s.seen / locCount;
+
+    // Use per-location data when available, otherwise fall back to even split
+    let locSched: number;
+    let locSeen: number;
+    let locData: Record<string, { available: number; scheduled: number; seen: number }> | null = null;
+
+    if (s.location_data) {
+      try {
+        const parsed = JSON.parse(s.location_data);
+        if (parsed && typeof parsed === "object" && parsed[location]) {
+          locData = parsed;
+        }
+      } catch { /* old data */ }
+    }
+
+    if (locData && locData[location]) {
+      locSched = Number(locData[location].scheduled) || 0;
+      locSeen = Number(locData[location].seen) || 0;
+    } else {
+      const locCount = locs.length;
+      locSched = s.scheduled / locCount;
+      locSeen = s.seen / locCount;
+    }
+
+    byWeek[week].sched += locSched;
+    byWeek[week].seen += locSeen;
   }
 
   return Object.entries(byWeek)

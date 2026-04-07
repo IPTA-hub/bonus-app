@@ -14,11 +14,21 @@ function getMondayOfWeek(date: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+interface LocationEntry {
+  available: string;
+  scheduled: string;
+  seen: string;
+}
+
 export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [weekStart, setWeekStart] = useState(getMondayOfWeek(new Date()));
+  // Single-location fields (used when 0 or 1 location selected)
   const [available, setAvailable] = useState(String(therapist.expectedVisits));
   const [scheduled, setScheduled] = useState("");
   const [seen, setSeen] = useState("");
+  // Per-location fields (used when 2+ locations selected)
+  const [locationEntries, setLocationEntries] = useState<Record<string, LocationEntry>>({});
+
   const [isPto, setIsPto] = useState(false);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [evalsCompleted, setEvalsCompleted] = useState("");
@@ -43,6 +53,22 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const isMultiLocation = selectedLocations.length > 1;
+
+  // Compute totals from per-location entries
+  const multiTotalAvailable = selectedLocations.reduce(
+    (sum, loc) => sum + (parseInt(locationEntries[loc]?.available || "0") || 0),
+    0
+  );
+  const multiTotalScheduled = selectedLocations.reduce(
+    (sum, loc) => sum + (parseInt(locationEntries[loc]?.scheduled || "0") || 0),
+    0
+  );
+  const multiTotalSeen = selectedLocations.reduce(
+    (sum, loc) => sum + (parseInt(locationEntries[loc]?.seen || "0") || 0),
+    0
+  );
+
   // Load submission history
   useEffect(() => {
     fetch(`/api/data?slug=${therapist.slug}`)
@@ -50,28 +76,77 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
       .then((d) => setHistory(Array.isArray(d) ? d : []))
       .catch(() => setHistory([]))
       .finally(() => setLoadingHistory(false));
-  }, [therapist.slug, result]); // Re-fetch after new submission
+  }, [therapist.slug, result]);
 
   function toggleLocation(loc: string) {
-    setSelectedLocations((prev) =>
-      prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
-    );
+    setSelectedLocations((prev) => {
+      const next = prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc];
+      // Initialize location entry if newly added
+      if (!prev.includes(loc)) {
+        setLocationEntries((entries) => ({
+          ...entries,
+          [loc]: entries[loc] || { available: "", scheduled: "", seen: "" },
+        }));
+      }
+      return next;
+    });
+  }
+
+  function updateLocationEntry(loc: string, field: keyof LocationEntry, value: string) {
+    setLocationEntries((prev) => ({
+      ...prev,
+      [loc]: { ...prev[loc], [field]: value },
+    }));
   }
 
   function loadSubmissionForEdit(submission: Submission) {
-    setWeekStart(new Date(submission.week_start).toISOString().split("T")[0]);
-    setAvailable(String(submission.available || therapist.expectedVisits));
-    setScheduled(String(submission.scheduled || ""));
-    setSeen(String(submission.seen || ""));
+    const weekDate = new Date(submission.week_start).toISOString().split("T")[0];
+    setWeekStart(weekDate);
     setIsPto(submission.is_pto);
-    setSelectedLocations(submission.locations ? submission.locations.split(",").filter(Boolean) : []);
+    setNotes(submission.notes || "");
     setEvalsCompleted(String(submission.evals_completed || ""));
     setEvalsWithDevCodes(String(submission.evals_with_dev_codes || ""));
-    setNotes(submission.notes || "");
-    setEditingWeek(new Date(submission.week_start).toISOString().split("T")[0]);
+    setEditingWeek(weekDate);
     setResult(null);
     setError("");
-    // Scroll to form
+
+    const locs = submission.locations ? submission.locations.split(",").filter(Boolean) : [];
+    setSelectedLocations(locs);
+
+    // Try to load per-location data
+    let locData: Record<string, LocationEntry> | null = null;
+    if (submission.location_data) {
+      try {
+        const parsed = JSON.parse(submission.location_data);
+        if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+          locData = {};
+          for (const [loc, data] of Object.entries(parsed)) {
+            const d = data as { available: number; scheduled: number; seen: number };
+            locData[loc] = {
+              available: String(d.available || ""),
+              scheduled: String(d.scheduled || ""),
+              seen: String(d.seen || ""),
+            };
+          }
+        }
+      } catch {
+        // Old data without location_data JSON
+      }
+    }
+
+    if (locData && locs.length > 1) {
+      setLocationEntries(locData);
+      // Clear single fields since we're in multi-location mode
+      setAvailable(String(therapist.expectedVisits));
+      setScheduled("");
+      setSeen("");
+    } else {
+      setAvailable(String(submission.available || therapist.expectedVisits));
+      setScheduled(String(submission.scheduled || ""));
+      setSeen(String(submission.seen || ""));
+      setLocationEntries({});
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -83,6 +158,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setSeen("");
     setIsPto(false);
     setSelectedLocations([]);
+    setLocationEntries({});
     setEvalsCompleted("");
     setEvalsWithDevCodes("");
     setNotes("");
@@ -103,7 +179,6 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete");
-      // Remove from local history
       setHistory((prev) =>
         prev.filter(
           (s) =>
@@ -125,21 +200,44 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setResult(null);
 
     try {
+      // Build request body
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requestBody: any = {
+        therapist_slug: therapist.slug,
+        week_start: weekStart,
+        is_pto: isPto,
+        evals_completed: parseInt(evalsCompleted) || 0,
+        evals_with_dev_codes: parseInt(evalsWithDevCodes) || 0,
+        locations: selectedLocations.join(","),
+        notes,
+      };
+
+      if (isMultiLocation) {
+        // Build location_data object with per-location breakdown
+        const locData: Record<string, { available: number; scheduled: number; seen: number }> = {};
+        for (const loc of selectedLocations) {
+          const entry = locationEntries[loc] || { available: "0", scheduled: "0", seen: "0" };
+          locData[loc] = {
+            available: parseInt(entry.available) || 0,
+            scheduled: parseInt(entry.scheduled) || 0,
+            seen: parseInt(entry.seen) || 0,
+          };
+        }
+        requestBody.location_data = locData;
+        // Totals computed server-side from location_data
+        requestBody.available = multiTotalAvailable;
+        requestBody.scheduled = multiTotalScheduled;
+        requestBody.seen = multiTotalSeen;
+      } else {
+        requestBody.available = parseInt(available) || 0;
+        requestBody.scheduled = parseInt(scheduled) || 0;
+        requestBody.seen = parseInt(seen) || 0;
+      }
+
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          therapist_slug: therapist.slug,
-          week_start: weekStart,
-          available: parseInt(available) || 0,
-          scheduled: parseInt(scheduled) || 0,
-          seen: parseInt(seen) || 0,
-          is_pto: isPto,
-          evals_completed: parseInt(evalsCompleted) || 0,
-          evals_with_dev_codes: parseInt(evalsWithDevCodes) || 0,
-          locations: selectedLocations.join(","),
-          notes,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json();
@@ -236,62 +334,157 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                 </label>
               ))}
             </div>
-            {selectedLocations.length > 1 && (
-              <p className="mt-1 text-xs text-gray-500">
-                Data will be split evenly across selected locations
-              </p>
-            )}
           </div>
 
           {!isPto && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Appointments Available
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={available}
-                  onChange={(e) => setAvailable(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g. 45"
-                  required={!isPto}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Total appointment slots open this week
-                </p>
-              </div>
+              {isMultiLocation ? (
+                /* ---- Per-Location Fields ---- */
+                <div className="space-y-4">
+                  <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    Enter data separately for each location you worked this week. Totals are calculated automatically.
+                  </p>
+                  {selectedLocations.map((loc) => {
+                    const entry = locationEntries[loc] || { available: "", scheduled: "", seen: "" };
+                    return (
+                      <div
+                        key={loc}
+                        className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                      >
+                        <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{
+                              backgroundColor:
+                                loc === "Greeley"
+                                  ? "#2563eb"
+                                  : loc === "Farm"
+                                  ? "#16a34a"
+                                  : "#d97706",
+                            }}
+                          />
+                          {loc}
+                        </h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Available
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={entry.available}
+                              onChange={(e) =>
+                                updateLocationEntry(loc, "available", e.target.value)
+                              }
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Scheduled
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={entry.scheduled}
+                              onChange={(e) =>
+                                updateLocationEntry(loc, "scheduled", e.target.value)
+                              }
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Seen
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={entry.seen}
+                              onChange={(e) =>
+                                updateLocationEntry(loc, "seen", e.target.value)
+                              }
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Totals row */}
+                  <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Total Available</p>
+                        <p className="text-lg font-bold text-blue-900">{multiTotalAvailable}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Total Scheduled</p>
+                        <p className="text-lg font-bold text-blue-900">{multiTotalScheduled}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Total Seen</p>
+                        <p className="text-lg font-bold text-blue-900">{multiTotalSeen}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ---- Single Location Fields ---- */
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Appointments Available
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={available}
+                      onChange={(e) => setAvailable(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 45"
+                      required={!isPto}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Total appointment slots open this week
+                    </p>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Patients Scheduled
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={scheduled}
-                  onChange={(e) => setScheduled(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g. 42"
-                  required={!isPto}
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Patients Scheduled
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={scheduled}
+                      onChange={(e) => setScheduled(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 42"
+                      required={!isPto}
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Patients Seen (Arrivals)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={seen}
-                  onChange={(e) => setSeen(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g. 38"
-                  required={!isPto}
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Patients Seen (Arrivals)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={seen}
+                      onChange={(e) => setSeen(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g. 38"
+                      required={!isPto}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Eval tracking for OTR and SLP */}
               {(therapist.role === "OTR" || therapist.role === "SLP") && (
@@ -552,6 +745,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                         {!row.is_pto && (
                           <p className="text-xs text-gray-500 mt-0.5">
                             Avail: {row.available} | Sched: {row.scheduled} | Seen: {row.seen}
+                            {row.locations && ` | ${row.locations}`}
                           </p>
                         )}
                       </div>

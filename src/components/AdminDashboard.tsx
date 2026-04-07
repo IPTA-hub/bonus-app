@@ -143,6 +143,44 @@ interface LocationSummary {
   byDiscipline: { role: string; avgRate: number | null; totalSeen: number; totalScheduled: number }[];
 }
 
+// Parse location_data JSON, returns per-location numbers or null
+function parseLocationData(s: Submission): Record<string, { available: number; scheduled: number; seen: number }> | null {
+  if (!s.location_data) return null;
+  try {
+    const parsed = JSON.parse(s.location_data);
+    if (parsed && typeof parsed === "object" && Object.keys(parsed).length > 0) {
+      return parsed;
+    }
+  } catch {
+    // Old submission without valid JSON
+  }
+  return null;
+}
+
+// Get per-location values: use location_data if available, otherwise fall back to even split
+function getLocationValues(s: Submission, loc: string): { available: number; scheduled: number; seen: number } | null {
+  if (!s.locations) return null;
+  const locs = s.locations.split(",").filter(Boolean);
+  if (!locs.includes(loc)) return null;
+
+  const locData = parseLocationData(s);
+  if (locData && locData[loc]) {
+    return {
+      available: Number(locData[loc].available) || 0,
+      scheduled: Number(locData[loc].scheduled) || 0,
+      seen: Number(locData[loc].seen) || 0,
+    };
+  }
+
+  // Fallback: split evenly for old submissions
+  const locCount = locs.length;
+  return {
+    available: (s.available || 0) / locCount,
+    scheduled: s.scheduled / locCount,
+    seen: s.seen / locCount,
+  };
+}
+
 function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
   return LOCATIONS.map((loc) => {
     // Filter submissions that include this location
@@ -153,21 +191,32 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
 
     const nonPto = locSubs.filter((s) => !s.is_pto && s.scheduled > 0);
 
-    // When multi-location, split data evenly
     let totalSched = 0;
     let totalSeen = 0;
     let totalAvail = 0;
     let totalBonus = 0;
 
     for (const s of nonPto) {
-      const locCount = s.locations.split(",").filter(Boolean).length || 1;
-      totalSched += s.scheduled / locCount;
-      totalSeen += s.seen / locCount;
-      totalAvail += (s.available || 0) / locCount;
+      const vals = getLocationValues(s, loc);
+      if (vals) {
+        totalSched += vals.scheduled;
+        totalSeen += vals.seen;
+        totalAvail += vals.available;
+      }
     }
     for (const s of locSubs) {
-      const locCount = s.locations ? s.locations.split(",").filter(Boolean).length || 1 : 1;
-      totalBonus += ((Number(s.bonus_amount) || 0) + (Number(s.eval_bonus) || 0)) / locCount;
+      const locs = s.locations ? s.locations.split(",").filter(Boolean) : [];
+      const locData = parseLocationData(s);
+      if (locData && locData[loc]) {
+        // Proportional bonus based on seen ratio
+        const totalSeenAll = Object.values(locData).reduce((a, v) => a + (Number(v.seen) || 0), 0);
+        const locSeenVal = Number(locData[loc].seen) || 0;
+        const proportion = totalSeenAll > 0 ? locSeenVal / totalSeenAll : 1 / locs.length;
+        totalBonus += ((Number(s.bonus_amount) || 0) + (Number(s.eval_bonus) || 0)) * proportion;
+      } else {
+        const locCount = locs.length || 1;
+        totalBonus += ((Number(s.bonus_amount) || 0) + (Number(s.eval_bonus) || 0)) / locCount;
+      }
     }
 
     // Count unique therapists at this location
@@ -181,9 +230,11 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
       let rSched = 0;
       let rSeen = 0;
       for (const s of roleSubs) {
-        const locCount = s.locations.split(",").filter(Boolean).length || 1;
-        rSched += s.scheduled / locCount;
-        rSeen += s.seen / locCount;
+        const vals = getLocationValues(s, loc);
+        if (vals) {
+          rSched += vals.scheduled;
+          rSeen += vals.seen;
+        }
       }
       return {
         role,
