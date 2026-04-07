@@ -10,6 +10,7 @@ export interface Therapist {
   directorLocation?: string; // which location they oversee
   hireDate?: string; // ISO date string
   workLocations: string[]; // typical work locations
+  email?: string; // for reminder emails
 }
 
 const FT_HOURS = 32;
@@ -25,6 +26,7 @@ function makeTherapist(
     directorLocation?: string;
     hireDate?: string;
     workLocations?: string[];
+    email?: string;
   }
 ): Therapist {
   const isFullTime = hours >= FT_HOURS;
@@ -40,6 +42,7 @@ function makeTherapist(
     directorLocation: opts?.directorLocation,
     hireDate: opts?.hireDate,
     workLocations: opts?.workLocations || [],
+    email: opts?.email,
   };
 }
 

@@ -17,6 +17,7 @@ import {
 import type { Submission } from "@/lib/db";
 import { THERAPISTS, LOCATIONS } from "@/lib/therapists";
 import ClinicalDirectorDashboard from "./ClinicalDirectorDashboard";
+import MissingSubmissions from "./MissingSubmissions";
 
 function getBarColor(rate: number): string {
   if (rate >= 1.0) return "#16a34a";
@@ -208,7 +209,7 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
 
 // ---- Tab Components ----
 
-type Tab = "staff" | "discipline" | "location" | "directors";
+type Tab = "staff" | "discipline" | "location" | "directors" | "submissions";
 
 function StaffView({ summaries }: { summaries: StaffSummary[] }) {
   const withData = summaries.filter((s) => s.avgRate !== null);
@@ -521,7 +522,7 @@ function LocationView({ summaries }: { summaries: LocationSummary[] }) {
 export default function AdminDashboard() {
   const [data, setData] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("staff");
+  const [activeTab, setActiveTab] = useState<Tab>("submissions");
 
   useEffect(() => {
     fetch("/api/data")
@@ -553,6 +554,7 @@ export default function AdminDashboard() {
   const clinicBonus = staffSummaries.reduce((a, s) => a + s.totalBonus + s.totalEvalBonus, 0);
 
   const tabs: { key: Tab; label: string }[] = [
+    { key: "submissions", label: "Submissions" },
     { key: "staff", label: "By Staff" },
     { key: "discipline", label: "By Discipline" },
     { key: "location", label: "By Location" },
@@ -605,6 +607,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tab content */}
+      {activeTab === "submissions" && <MissingSubmissions />}
       {activeTab === "staff" && <StaffView summaries={staffSummaries} />}
       {activeTab === "discipline" && <DisciplineView summaries={disciplineSummaries} />}
       {activeTab === "location" && <LocationView summaries={locationSummaries} />}

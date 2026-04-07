@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTherapistBySlug, THERAPISTS } from "@/lib/therapists";
 import SubmitForm from "@/components/SubmitForm";
+import WeeklyReminder from "@/components/WeeklyReminder";
 import Link from "next/link";
 
 export function generateStaticParams() {
@@ -25,6 +26,9 @@ export default async function SubmitPage({
         >
           &larr; Back to Staff Directory
         </Link>
+      </div>
+      <div className="max-w-lg mx-auto mb-4">
+        <WeeklyReminder slug={slug} />
       </div>
       <SubmitForm therapist={therapist} />
       <div className="max-w-lg mx-auto mt-4 text-center">
