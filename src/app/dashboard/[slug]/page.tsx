@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTherapistBySlug, THERAPISTS } from "@/lib/therapists";
 import TherapistDashboard from "@/components/TherapistDashboard";
 import Link from "next/link";
+import { auth, type SessionWithRole } from "@/lib/auth";
 
 export function generateStaticParams() {
   return THERAPISTS.map((t) => ({ slug: t.slug }));
@@ -15,6 +16,9 @@ export default async function TherapistDashboardPage({
   const { slug } = await params;
   const therapist = getTherapistBySlug(slug);
   if (!therapist) notFound();
+
+  const session = (await auth()) as SessionWithRole | null;
+  const userRole = session?.role || "therapist";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
@@ -33,7 +37,7 @@ export default async function TherapistDashboardPage({
             Submit Weekly Data
           </Link>
         </div>
-        <TherapistDashboard therapist={therapist} />
+        <TherapistDashboard therapist={therapist} userRole={userRole} />
       </div>
     </div>
   );

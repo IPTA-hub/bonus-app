@@ -2,10 +2,11 @@ import Link from "next/link";
 import { THERAPISTS } from "@/lib/therapists";
 
 export default function Home() {
-  const grouped = {
+  const grouped: Record<string, typeof THERAPISTS> = {
     OTR: THERAPISTS.filter((t) => t.role === "OTR"),
     COTA: THERAPISTS.filter((t) => t.role === "COTA"),
     SLP: THERAPISTS.filter((t) => t.role === "SLP"),
+    Director: THERAPISTS.filter((t) => t.role === "Director"),
   };
 
   return (

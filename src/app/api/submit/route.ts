@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSubmission } from "@/lib/db";
+import { upsertSubmission, deleteSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
 import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Therapists can only submit for themselves
+    // Therapists and directors can only submit for themselves
     if (
-      session.role === "therapist" &&
+      (session.role === "therapist" || session.role === "director") &&
       session.therapist_slug !== therapist_slug
     ) {
       return NextResponse.json(
@@ -101,6 +101,57 @@ export async function POST(request: NextRequest) {
     console.error("Submit error:", error);
     return NextResponse.json(
       { error: "Failed to submit" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = (await auth()) as SessionWithRole | null;
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { therapist_slug, week_start } = await request.json();
+
+    if (!therapist_slug || !week_start) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Therapists can only delete their own submissions
+    if (
+      session.role === "therapist" &&
+      session.therapist_slug !== therapist_slug
+    ) {
+      return NextResponse.json(
+        { error: "You can only delete your own submissions" },
+        { status: 403 }
+      );
+    }
+
+    // Directors can only delete their own submissions
+    if (
+      session.role === "director" &&
+      session.therapist_slug !== therapist_slug
+    ) {
+      return NextResponse.json(
+        { error: "You can only delete your own submissions" },
+        { status: 403 }
+      );
+    }
+
+    // Admin can delete any submission
+    await deleteSubmission(therapist_slug, week_start);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete submission" },
       { status: 500 }
     );
   }

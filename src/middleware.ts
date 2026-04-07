@@ -29,8 +29,8 @@ export default auth((req) => {
   const therapistSlug = (session as unknown as { therapist_slug: string | null })
     .therapist_slug;
 
-  // Admin can access everything
-  if (role === "admin") {
+  // Admin and directors can access everything
+  if (role === "admin" || role === "director") {
     return NextResponse.next();
   }
 

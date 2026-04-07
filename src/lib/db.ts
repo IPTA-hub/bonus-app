@@ -176,3 +176,27 @@ export async function getSubmissionsByDateRange(
   `;
   return rows as unknown as Submission[];
 }
+
+export async function deleteSubmission(
+  therapistSlug: string,
+  weekStart: string
+): Promise<void> {
+  const sql = getDb();
+  await sql`
+    DELETE FROM submissions
+    WHERE therapist_slug = ${therapistSlug} AND week_start = ${weekStart}
+  `;
+}
+
+export async function getSubmission(
+  therapistSlug: string,
+  weekStart: string
+): Promise<Submission | null> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM submissions
+    WHERE therapist_slug = ${therapistSlug} AND week_start = ${weekStart}
+    LIMIT 1
+  `;
+  return rows.length > 0 ? (rows[0] as unknown as Submission) : null;
+}

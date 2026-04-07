@@ -93,6 +93,13 @@ export const THERAPISTS: Therapist[] = [
     hireDate: "2025-09-19",
     workLocations: ["Greeley", "Farm", "Windsor"],
   }),
+
+  // --- Director (non-clinical) ---
+  makeTherapist("Nicole Summerson", "Director", 40, 0, {
+    isClinicalDirector: false,
+    hireDate: "2018-10-11",
+    workLocations: [],
+  }),
 ];
 
 export function getTherapistBySlug(slug: string): Therapist | undefined {
@@ -104,7 +111,12 @@ export function getClinicalDirectors(): Therapist[] {
 }
 
 export function getRegularTherapists(): Therapist[] {
-  return THERAPISTS.filter((t) => !t.isClinicalDirector);
+  return THERAPISTS.filter((t) => !t.isClinicalDirector && t.role !== "Director");
+}
+
+// All staff who should have a "director" user role (clinical directors + Nicole Summerson)
+export function getDirectors(): Therapist[] {
+  return THERAPISTS.filter((t) => t.isClinicalDirector || t.role === "Director");
 }
 
 export function getTherapistsByLocation(location: string): Therapist[] {

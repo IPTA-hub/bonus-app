@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(rows);
     }
 
-    // Admin can see everything
+    // Admin and directors can see everything
     if (slug) {
       const rows = await getSubmissions(slug);
       return NextResponse.json(rows);

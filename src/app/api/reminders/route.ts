@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
         .map((s) => s.therapist_slug)
     );
 
-    // Find missing therapists who have an email
+    // Find missing clinical staff who have an email (exclude non-clinical directors)
     const missing = THERAPISTS.filter(
-      (t) => !submittedSlugs.has(t.slug) && t.email
+      (t) => !submittedSlugs.has(t.slug) && t.email && t.role !== "Director"
     );
 
     if (missing.length === 0) {

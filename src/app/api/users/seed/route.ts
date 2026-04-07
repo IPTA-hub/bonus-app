@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { createUser, initDb } from "@/lib/db";
-import { THERAPISTS } from "@/lib/therapists";
+import { THERAPISTS, getDirectors } from "@/lib/therapists";
 
 function generateUsername(name: string): string {
   const parts = name.toLowerCase().trim().split(/\s+/);
@@ -48,17 +48,23 @@ export async function GET(request: NextRequest) {
       role: "admin",
     });
 
-    // Create a therapist account for each staff member
+    // Determine which slugs should be directors
+    const directorSlugs = new Set(getDirectors().map((d) => d.slug));
+
+    // Create accounts for each staff member
     for (const t of THERAPISTS) {
       const username = generateUsername(t.name);
       const password = generateDefaultPassword(t.name);
       const passwordHash = await hash(password, 12);
 
+      // Clinical directors and Nicole Summerson get "director" role
+      const role = directorSlugs.has(t.slug) ? "director" : "therapist";
+
       await createUser({
         username,
         password_hash: passwordHash,
         therapist_slug: t.slug,
-        role: "therapist",
+        role,
         name: t.name,
       });
 
@@ -66,7 +72,7 @@ export async function GET(request: NextRequest) {
         name: t.name,
         username,
         password,
-        role: "therapist",
+        role,
       });
     }
 

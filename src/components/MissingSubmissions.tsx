@@ -5,6 +5,9 @@ import Link from "next/link";
 import type { Submission } from "@/lib/db";
 import { THERAPISTS } from "@/lib/therapists";
 
+// Only track clinical staff for submission tracking (exclude non-clinical directors)
+const CLINICAL_STAFF = THERAPISTS.filter((t) => t.role !== "Director");
+
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
   const day = d.getDay();
@@ -33,7 +36,7 @@ export default function MissingSubmissions() {
       .then((r) => r.json())
       .then((data: Submission[]) => {
         if (!Array.isArray(data)) {
-          setMissing(THERAPISTS.map((t) => ({
+          setMissing(CLINICAL_STAFF.map((t) => ({
             name: t.name, slug: t.slug, role: t.role, isClinicalDirector: t.isClinicalDirector,
           })));
           return;
@@ -51,7 +54,7 @@ export default function MissingSubmissions() {
         const missingList: MissingStaff[] = [];
         const submittedList: MissingStaff[] = [];
 
-        for (const t of THERAPISTS) {
+        for (const t of CLINICAL_STAFF) {
           const entry = {
             name: t.name, slug: t.slug, role: t.role, isClinicalDirector: t.isClinicalDirector,
           };
@@ -116,7 +119,7 @@ export default function MissingSubmissions() {
       <div className="w-full bg-gray-200 rounded-full h-3">
         <div
           className="bg-green-500 h-3 rounded-full transition-all"
-          style={{ width: `${THERAPISTS.length > 0 ? (submitted.length / THERAPISTS.length) * 100 : 0}%` }}
+          style={{ width: `${CLINICAL_STAFF.length > 0 ? (submitted.length / CLINICAL_STAFF.length) * 100 : 0}%` }}
         />
       </div>
 
