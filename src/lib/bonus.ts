@@ -402,21 +402,41 @@ export function calculatePatientArrivalBonus(
 // EQUINE BONUS STRUCTURE
 // ============================================================
 
-// --- Equine Bonus 1: Staff Retention (same tiers as CD + $100 biannual flat) ---
-// Uses same RETENTION_TIERS from CD section above
-// Plus: $100 biannual flat bonus (tracked separately)
-export const EQUINE_BIANNUAL_BONUS = 100;
+// --- Equine Staff (Dillen, Katie, Savannah) ---
 
-// --- Equine Bonus 2: Individual Productivity (Extra Walks) ---
-// $5 per extra walk beyond scheduled sessions
+// Bonus 1: Staff Retention — Flat $100 biannual (October & April)
+// Must be employed at least 3 months to qualify
+export const EQUINE_BIANNUAL_BONUS = 100;
+export const EQUINE_BIANNUAL_MIN_MONTHS = 3;
+export const EQUINE_BIANNUAL_MONTHS = [3, 9]; // April = month 3 (0-indexed), October = month 9
+
+export function isEligibleForBiannualBonus(hireDate: string, asOfDate?: Date): boolean {
+  const ref = asOfDate || new Date();
+  const hire = new Date(hireDate);
+  const diffMs = ref.getTime() - hire.getTime();
+  const diffMonths = diffMs / (1000 * 60 * 60 * 24 * 30.44); // approx months
+  return diffMonths >= EQUINE_BIANNUAL_MIN_MONTHS;
+}
+
+export function getNextBiannualDate(asOfDate?: Date): { month: string; date: Date } {
+  const ref = asOfDate || new Date();
+  const currentMonth = ref.getMonth();
+  // April (3) or October (9) — find the next one
+  if (currentMonth < 3) return { month: "April", date: new Date(ref.getFullYear(), 3, 1) };
+  if (currentMonth < 9) return { month: "October", date: new Date(ref.getFullYear(), 9, 1) };
+  return { month: "April", date: new Date(ref.getFullYear() + 1, 3, 1) };
+}
+
+// Bonus 2: Productivity — $5 per extra walk
 export const EQUINE_WALK_RATE = 5;
 
 export function calculateEquineWalkBonus(extraWalks: number): number {
   return extraWalks * EQUINE_WALK_RATE;
 }
 
-// --- Equine Bonus 3: Patient Arrivals ---
-// Uses the same calculatePatientArrivalBonus function as PCC (shared)
+// --- Marley Higgins (Equine Director) ---
+// Gets staff retention bonus based on direct reports' years of service
+// Uses same RETENTION_TIERS as Clinical Directors ($100–$500 by years)
 
 // ============================================================
 // CAROLEE JAYNES — SPONSORSHIP BONUS

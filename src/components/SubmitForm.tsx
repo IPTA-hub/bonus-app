@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
-import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG, isEligibleForBiannualBonus, getNextBiannualDate, RETENTION_TIERS, getRetentionBonus } from "@/lib/bonus";
+import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -51,6 +52,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const isDirector = therapist.role === "Director";
   const isPCC = therapist.role === "PCC";
   const isEquine = therapist.role === "Equine";
+  const isEquineDirector = isEquine && !!therapist.directorLocation;
+  const isEquineStaff = isEquine && !therapist.directorLocation;
   const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
   const hidePatientTracking = isPCC || isEquine;
 
@@ -767,11 +770,11 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </div>
           )}
 
-          {/* Equine-specific fields */}
-          {isEquine && !isPto && (
+          {/* Equine Staff fields (Dillen, Katie, Savannah — NOT Marley) */}
+          {isEquineStaff && !isPto && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
               <h4 className="text-sm font-semibold text-gray-700">
-                Extra Walks (Individual Productivity)
+                Productivity Bonus (Extra Walks)
               </h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -788,9 +791,6 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               </div>
               <p className="text-xs text-gray-500">
                 ${EQUINE_WALK_RATE} per extra walk beyond scheduled sessions
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Patient Arrivals bonus calculated on dashboard (based on Farm arrival rate)
               </p>
             </div>
           )}
@@ -886,7 +886,12 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   Company productivity bonus calculated on your dashboard
                 </p>
               )}
-              {(isPCC || isEquine) && (
+              {isPCC && (
+                <p className="text-blue-700 text-sm mt-1">
+                  Patient Arrivals bonus calculated on your dashboard
+                </p>
+              )}
+              {isEquineDirector && (
                 <p className="text-blue-700 text-sm mt-1">
                   Patient Arrivals bonus calculated on your dashboard
                 </p>
@@ -897,7 +902,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   ${(result.bonus_amount + (result.eval_bonus || 0) + (result.recruitment_bonus || 0)).toFixed(2)}
                 </span>
                 {isDirector && <span className="text-sm ml-1">(+ company bonus)</span>}
-                {(isPCC || isEquine) && <span className="text-sm ml-1">(+ patient arrivals)</span>}
+                {isPCC && <span className="text-sm ml-1">(+ patient arrivals)</span>}
+                {isEquineDirector && <span className="text-sm ml-1">(+ patient arrivals)</span>}
               </p>
             </div>
           ) : (
@@ -1030,38 +1036,79 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               </p>
             </div>
           </div>
-        ) : isEquine ? (
-          /* ---- Equine 3-Bonus Structure ---- */
+        ) : isEquineDirector ? (
+          /* ---- Marley Higgins — Equine Director Bonus ---- */
           <div className="space-y-4">
-            {therapist.directorLocation && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">1</span>
-                  Staff Retention (Annual)
-                </h3>
-                <p className="text-xs text-gray-500">
-                  $100–$500 based on years of service + ${EQUINE_BIANNUAL_BONUS} biannual flat bonus. Calculated on admin dashboard.
-                </p>
-              </div>
-            )}
             <div>
               <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">{therapist.directorLocation ? "2" : "1"}</span>
-                Individual Productivity (Extra Walks)
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">1</span>
+                Staff Retention (Direct Reports)
               </h3>
-              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
-                <span className="text-sm text-gray-600">Per extra walk</span>
-                <span className="font-semibold text-gray-900">${EQUINE_WALK_RATE}</span>
+              <p className="text-xs text-gray-500 mb-2">
+                Bonus based on each direct report&apos;s years of service:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {RETENTION_TIERS.slice().reverse().map((tier) => (
+                  <div key={tier.minYears} className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                    <span className="text-sm text-gray-600">{tier.minYears}+ years</span>
+                    <span className="font-semibold text-gray-900">${tier.amount}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 space-y-1">
+                <p className="text-xs font-medium text-gray-600">Direct Reports:</p>
+                {getEquineStaffMembers().map((staff) => {
+                  const yrs = staff.hireDate ? getYearsOfService(staff.hireDate) : 0;
+                  const bonus = getRetentionBonus(yrs);
+                  return (
+                    <div key={staff.slug} className="flex justify-between items-center text-xs px-2 py-1 bg-white rounded">
+                      <span className="text-gray-700">{staff.name} — {yrs} yr{yrs !== 1 ? "s" : ""}</span>
+                      <span className={bonus > 0 ? "text-green-600 font-medium" : "text-gray-400"}>{bonus > 0 ? `$${bonus}` : "—"}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">{therapist.directorLocation ? "3" : "2"}</span>
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">2</span>
                 Patient Arrivals
               </h3>
               <p className="text-xs text-gray-500">
                 Based on Farm&apos;s weekly arrival rate &amp; volume (100+ scheduled). Calculated on dashboard.
               </p>
+            </div>
+          </div>
+        ) : isEquineStaff ? (
+          /* ---- Equine Staff (Dillen, Katie, Savannah) ---- */
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">1</span>
+                Staff Retention
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">Biannual (Oct &amp; Apr)</span>
+                <span className="font-semibold text-gray-900">${EQUINE_BIANNUAL_BONUS}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Must be employed at least 3 months to qualify.
+                {therapist.hireDate && (
+                  isEligibleForBiannualBonus(therapist.hireDate)
+                    ? <span className="text-green-600 ml-1">You qualify! Next payout: {getNextBiannualDate().month}</span>
+                    : <span className="text-amber-600 ml-1">Not yet eligible (need 3+ months).</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">2</span>
+                Productivity (Extra Walks)
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">Per extra walk</span>
+                <span className="font-semibold text-gray-900">${EQUINE_WALK_RATE}</span>
+              </div>
             </div>
           </div>
         ) : (

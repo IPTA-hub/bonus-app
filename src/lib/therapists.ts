@@ -170,6 +170,15 @@ export function getTherapistsByLocation(location: string): Therapist[] {
 export const LOCATIONS = ["Greeley", "Farm", "Windsor"] as const;
 export type Location = (typeof LOCATIONS)[number];
 
+// Calculate months of service as of a given date
+export function getMonthsOfService(hireDate: string, asOf?: Date): number {
+  const hire = new Date(hireDate);
+  const ref = asOf || new Date();
+  const months = (ref.getFullYear() - hire.getFullYear()) * 12 + (ref.getMonth() - hire.getMonth());
+  if (ref.getDate() < hire.getDate()) return Math.max(0, months - 1);
+  return Math.max(0, months);
+}
+
 // Calculate years of service as of a given date
 export function getYearsOfService(hireDate: string, asOf?: Date): number {
   const hire = new Date(hireDate);

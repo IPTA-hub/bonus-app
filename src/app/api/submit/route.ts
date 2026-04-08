@@ -130,7 +130,8 @@ export async function POST(request: NextRequest) {
       bonusAmount = pccRescheduleBonus + pccEvalBonus;
     }
 
-    if (therapist.role === "Equine" && !pto && roleBonusInput) {
+    // Equine staff (not director) — walk bonus
+    if (therapist.role === "Equine" && !therapist.directorLocation && !pto && roleBonusInput) {
       const rbd = roleBonusInput;
       const extraWalks = parseInt(String(rbd.extra_walks)) || 0;
       equineWalkBonus = calculateEquineWalkBonus(extraWalks);
