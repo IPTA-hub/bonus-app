@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission, deleteSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
-import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus } from "@/lib/bonus";
+import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data, recruitment_hires, recruitment_events } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data, recruitment_hires, recruitment_events, role_bonus_data: roleBonusInput } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -100,6 +100,49 @@ export async function POST(request: NextRequest) {
       ? calculateRecruitmentBonus(recHires, recEvents)
       : 0;
 
+    // Calculate PCC-specific bonuses
+    let roleBonusDataStr = "";
+    let pccRescheduleBonus = 0;
+    let pccEvalBonus = 0;
+    let equineWalkBonus = 0;
+
+    if (therapist.role === "PCC" && !pto && roleBonusInput) {
+      const rbd = roleBonusInput;
+      const reschedulesSeen = parseInt(String(rbd.reschedules_seen)) || 0;
+      const flexSeen = parseInt(String(rbd.flex_seen)) || 0;
+      const evalSlots = parseInt(String(rbd.eval_slots)) || 0;
+      const evalsFilled = parseInt(String(rbd.evals_filled)) || 0;
+      const clinicCancellations = parseInt(String(rbd.clinic_cancellations)) || 0;
+
+      pccRescheduleBonus = calculatePCCRescheduleBonus(reschedulesSeen, flexSeen);
+      pccEvalBonus = calculatePCCEvalBonus(evalsFilled, evalSlots, clinicCancellations);
+
+      roleBonusDataStr = JSON.stringify({
+        reschedules_seen: reschedulesSeen,
+        flex_seen: flexSeen,
+        eval_slots: evalSlots,
+        evals_filled: evalsFilled,
+        clinic_cancellations: clinicCancellations,
+        reschedule_bonus: pccRescheduleBonus,
+        eval_bonus: pccEvalBonus,
+      });
+      // For PCC, bonus_amount stores the sum of reschedule + eval bonuses
+      bonusAmount = pccRescheduleBonus + pccEvalBonus;
+    }
+
+    if (therapist.role === "Equine" && !pto && roleBonusInput) {
+      const rbd = roleBonusInput;
+      const extraWalks = parseInt(String(rbd.extra_walks)) || 0;
+      equineWalkBonus = calculateEquineWalkBonus(extraWalks);
+
+      roleBonusDataStr = JSON.stringify({
+        extra_walks: extraWalks,
+        walk_bonus: equineWalkBonus,
+      });
+      // For Equine staff, bonus_amount stores walk bonus
+      bonusAmount = equineWalkBonus;
+    }
+
     await upsertSubmission({
       therapist_slug,
       week_start,
@@ -119,6 +162,7 @@ export async function POST(request: NextRequest) {
       recruitment_hires: recHires,
       recruitment_events: recEvents,
       recruitment_bonus: recruitmentBonus,
+      role_bonus_data: roleBonusDataStr,
     });
 
     return NextResponse.json({
@@ -132,6 +176,7 @@ export async function POST(request: NextRequest) {
       recruitment_hires: recHires,
       recruitment_events: recEvents,
       recruitment_bonus: recruitmentBonus,
+      role_bonus_data: roleBonusDataStr,
     });
   } catch (error) {
     console.error("Submit error:", error);

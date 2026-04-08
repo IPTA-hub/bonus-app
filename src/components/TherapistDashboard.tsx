@@ -10,7 +10,8 @@ import {
   MonthlyBonusChart,
   YearlySummary,
 } from "./Charts";
-import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT } from "@/lib/bonus";
+import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, calculatePatientArrivalBonus, PCC_RESCHEDULE_RATE, EQUINE_WALK_RATE } from "@/lib/bonus";
+import type { PCCBonusData, EquineBonusData } from "@/lib/db";
 
 export default function TherapistDashboard({
   therapist,
@@ -28,6 +29,9 @@ export default function TherapistDashboard({
 
   const canModify = userRole === "admin" || userRole === "therapist" || userRole === "director";
   const isDirector = therapist.role === "Director";
+  const isPCC = therapist.role === "PCC";
+  const isEquine = therapist.role === "Equine";
+  const needsAllData = isDirector || isPCC || isEquine;
 
   useEffect(() => {
     const fetches = [
@@ -36,8 +40,8 @@ export default function TherapistDashboard({
         .then((d) => setData(Array.isArray(d) ? d : []))
         .catch(() => setData([])),
     ];
-    // For Nicole, also fetch all submissions to calculate company-wide rate
-    if (isDirector) {
+    // For Nicole, PCC, and Equine, also fetch all submissions for dynamic bonuses
+    if (needsAllData) {
       fetches.push(
         fetch("/api/data")
           .then((r) => r.json())
@@ -46,7 +50,7 @@ export default function TherapistDashboard({
       );
     }
     Promise.all(fetches).finally(() => setLoading(false));
-  }, [therapist.slug, isDirector]);
+  }, [therapist.slug, needsAllData]);
 
   // Calculate company-wide arrival rate per week (for Nicole's company bonus)
   function getCompanyRateForWeek(weekStart: string): number | null {
@@ -57,6 +61,43 @@ export default function TherapistDashboard({
     const totalSched = weekSubs.reduce((a, s) => a + s.scheduled, 0);
     const totalSeen = weekSubs.reduce((a, s) => a + s.seen, 0);
     return totalSched > 0 ? totalSeen / totalSched : null;
+  }
+
+  // Calculate location-specific arrival rate & bonus for a given week (PCC/Equine)
+  function getLocationArrivalForWeek(weekStart: string, location: string): { rate: number; scheduled: number; bonus: number } | null {
+    const weekSubs = allData.filter(
+      (s) => s.week_start === weekStart && !s.is_pto && s.scheduled > 0
+    );
+    if (weekSubs.length === 0) return null;
+
+    let totalSched = 0;
+    let totalSeen = 0;
+
+    for (const s of weekSubs) {
+      // Try to use per-location data
+      if (s.location_data) {
+        try {
+          const locData = JSON.parse(s.location_data);
+          if (locData[location]) {
+            totalSched += Number(locData[location].scheduled) || 0;
+            totalSeen += Number(locData[location].seen) || 0;
+            continue;
+          }
+        } catch { /* fallback */ }
+      }
+      // Fallback: if therapist works at this location, split evenly
+      const locs = s.locations ? s.locations.split(",").filter(Boolean) : [];
+      if (locs.includes(location) || locs.length === 0) {
+        const divisor = Math.max(locs.length, 1);
+        totalSched += s.scheduled / divisor;
+        totalSeen += s.seen / divisor;
+      }
+    }
+
+    if (totalSched <= 0) return null;
+    const rate = totalSeen / totalSched;
+    const bonus = calculatePatientArrivalBonus(rate, totalSched);
+    return { rate, scheduled: totalSched, bonus };
   }
 
   async function handleDelete(weekDate: string) {
@@ -160,6 +201,123 @@ export default function TherapistDashboard({
         </div>
       )}
 
+      {/* PCC Bonus Summary */}
+      {isPCC && data.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">PCC Bonus Breakdown</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-teal-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-teal-600 font-medium uppercase">Reschedules</p>
+              <p className="text-xl font-bold text-teal-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: PCCBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.reschedule_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-teal-500 mt-1">
+                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: PCCBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.reschedules_seen || 0) + (rbd.flex_seen || 0);
+                  } catch { return a; }
+                }, 0)} total @ ${PCC_RESCHEDULE_RATE}/each
+              </p>
+            </div>
+            <div className="bg-indigo-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-indigo-600 font-medium uppercase">Eval Bonus</p>
+              <p className="text-xl font-bold text-indigo-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: PCCBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.eval_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-purple-600 font-medium uppercase">Patient Arrivals</p>
+              <p className="text-xl font-bold text-purple-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+                  const result = getLocationArrivalForWeek(s.week_start, loc);
+                  return a + (result?.bonus || 0);
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-purple-500 mt-1">Based on {therapist.directorLocation || therapist.workLocations[0]} arrivals</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
+              <p className="text-xl font-bold text-green-700">
+                ${(
+                  data.filter((s) => !s.is_pto).reduce((a, s) => {
+                    let weekTotal = Number(s.bonus_amount) || 0;
+                    const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+                    const arrResult = getLocationArrivalForWeek(s.week_start, loc);
+                    weekTotal += arrResult?.bonus || 0;
+                    return a + weekTotal;
+                  }, 0)
+                ).toFixed(0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">All 3 bonuses combined</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Equine Bonus Summary */}
+      {isEquine && data.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Equine Bonus Breakdown</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="bg-amber-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-amber-600 font-medium uppercase">Extra Walks</p>
+              <p className="text-xl font-bold text-amber-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.walk_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-amber-500 mt-1">
+                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.extra_walks || 0);
+                  } catch { return a; }
+                }, 0)} walks @ ${EQUINE_WALK_RATE}/each
+              </p>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-purple-600 font-medium uppercase">Patient Arrivals</p>
+              <p className="text-xl font-bold text-purple-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  const arrResult = getLocationArrivalForWeek(s.week_start, "Farm");
+                  return a + (arrResult?.bonus || 0);
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-purple-500 mt-1">Based on Farm arrivals</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
+              <p className="text-xl font-bold text-green-700">
+                ${(
+                  data.filter((s) => !s.is_pto).reduce((a, s) => {
+                    let weekTotal = Number(s.bonus_amount) || 0;
+                    const arrResult = getLocationArrivalForWeek(s.week_start, "Farm");
+                    weekTotal += arrResult?.bonus || 0;
+                    return a + weekTotal;
+                  }, 0)
+                ).toFixed(0)}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">All bonuses combined</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -206,11 +364,17 @@ export default function TherapistDashboard({
               <thead>
                 <tr className="bg-gray-50 text-left">
                   <th className="px-6 py-3 font-medium text-gray-500">Week</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Available</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Utilization</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Seen</th>
-                  <th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>
+                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Available</th>}
+                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>}
+                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Utilization</th>}
+                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Seen</th>}
+                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>}
+                  {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Resched</th>}
+                  {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Flex</th>}
+                  {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Eval</th>}
+                  {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Loc. Rate</th>}
+                  {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Walks</th>}
+                  {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Farm Rate</th>}
                   {(therapist.role === "OTR" || therapist.role === "SLP") && (
                     <th className="px-6 py-3 font-medium text-gray-500">Evals</th>
                   )}
@@ -248,43 +412,100 @@ export default function TherapistDashboard({
                             year: "numeric",
                           })}
                         </td>
-                        <td className="px-6 py-3">
-                          {row.is_pto ? "-" : (row.available || "-")}
-                        </td>
-                        <td className="px-6 py-3">
-                          {row.is_pto ? (
-                            <span className="text-amber-600 font-medium">PTO</span>
-                          ) : (
-                            row.scheduled
-                          )}
-                        </td>
-                        <td className="px-6 py-3">
-                          {row.utilization_rate !== null && row.utilization_rate !== undefined ? (
-                            <span className="font-medium text-purple-600">
-                              {(Number(row.utilization_rate) * 100).toFixed(1)}%
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-3">{row.is_pto ? "-" : row.seen}</td>
-                        <td className="px-6 py-3">
-                          {row.arrival_rate !== null ? (
-                            <span
-                              className={`font-medium ${
-                                Number(row.arrival_rate) >= 0.9
-                                  ? "text-green-600"
-                                  : Number(row.arrival_rate) >= 0.85
-                                  ? "text-amber-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {(Number(row.arrival_rate) * 100).toFixed(1)}%
-                            </span>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
+                        {!isPCC && !isEquine && (
+                          <td className="px-6 py-3">
+                            {row.is_pto ? "-" : (row.available || "-")}
+                          </td>
+                        )}
+                        {!isPCC && !isEquine && (
+                          <td className="px-6 py-3">
+                            {row.is_pto ? (
+                              <span className="text-amber-600 font-medium">PTO</span>
+                            ) : (
+                              row.scheduled
+                            )}
+                          </td>
+                        )}
+                        {!isPCC && !isEquine && (
+                          <td className="px-6 py-3">
+                            {row.utilization_rate !== null && row.utilization_rate !== undefined ? (
+                              <span className="font-medium text-purple-600">
+                                {(Number(row.utilization_rate) * 100).toFixed(1)}%
+                              </span>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        )}
+                        {!isPCC && !isEquine && (
+                          <td className="px-6 py-3">{row.is_pto ? "-" : row.seen}</td>
+                        )}
+                        {!isPCC && !isEquine && (
+                          <td className="px-6 py-3">
+                            {row.arrival_rate !== null ? (
+                              <span
+                                className={`font-medium ${
+                                  Number(row.arrival_rate) >= 0.9
+                                    ? "text-green-600"
+                                    : Number(row.arrival_rate) >= 0.85
+                                    ? "text-amber-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {(Number(row.arrival_rate) * 100).toFixed(1)}%
+                              </span>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        )}
+                        {/* PCC-specific columns */}
+                        {isPCC && (() => {
+                          let rbd: PCCBonusData = { reschedules_seen: 0, flex_seen: 0, eval_slots: 0, evals_filled: 0, clinic_cancellations: 0, reschedule_bonus: 0, eval_bonus: 0 };
+                          try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                          const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+                          const locArr = !row.is_pto ? getLocationArrivalForWeek(row.week_start, loc) : null;
+                          return (
+                            <>
+                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.reschedules_seen}</td>
+                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.flex_seen}</td>
+                              <td className="px-6 py-3">
+                                {row.is_pto ? "-" : (
+                                  rbd.eval_bonus > 0
+                                    ? <span className="text-green-600 font-medium">${rbd.eval_bonus}</span>
+                                    : <span className="text-gray-400">$0</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-3">
+                                {locArr ? (
+                                  <span className="text-purple-600 font-medium">
+                                    {(locArr.rate * 100).toFixed(1)}%
+                                    {locArr.bonus > 0 && <span className="text-green-600 ml-1">(${locArr.bonus})</span>}
+                                  </span>
+                                ) : "-"}
+                              </td>
+                            </>
+                          );
+                        })()}
+                        {/* Equine-specific columns */}
+                        {isEquine && (() => {
+                          let rbd: EquineBonusData = { extra_walks: 0, walk_bonus: 0 };
+                          try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                          const farmArr = !row.is_pto ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
+                          return (
+                            <>
+                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.extra_walks}</td>
+                              <td className="px-6 py-3">
+                                {farmArr ? (
+                                  <span className="text-purple-600 font-medium">
+                                    {(farmArr.rate * 100).toFixed(1)}%
+                                    {farmArr.bonus > 0 && <span className="text-green-600 ml-1">(${farmArr.bonus})</span>}
+                                  </span>
+                                ) : "-"}
+                              </td>
+                            </>
+                          );
+                        })()}
                         {(therapist.role === "OTR" || therapist.role === "SLP") && (
                           <td className="px-6 py-3">
                             {row.is_pto ? "-" : (row.evals_completed || 0)}
@@ -324,6 +545,15 @@ export default function TherapistDashboard({
                             if (isDirector && !row.is_pto) {
                               const compRate = getCompanyRateForWeek(row.week_start);
                               if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
+                            }
+                            if (isPCC && !row.is_pto) {
+                              const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+                              const locArr = getLocationArrivalForWeek(row.week_start, loc);
+                              if (locArr) total += locArr.bonus;
+                            }
+                            if (isEquine && !row.is_pto) {
+                              const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
+                              if (farmArr) total += farmArr.bonus;
                             }
                             return total > 0 ? `$${total.toFixed(2)}` : "-";
                           })()}

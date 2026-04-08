@@ -100,6 +100,34 @@ export const THERAPISTS: Therapist[] = [
     hireDate: "2018-10-11",
     workLocations: ["Greeley", "Farm", "Windsor"],
   }),
+
+  // --- Patient Care Coordinators ---
+  makeTherapist("Corina Ceballos", "PCC", 40, 0, {
+    directorLocation: "Greeley",
+    workLocations: ["Greeley"],
+  }),
+  makeTherapist("Kenzie Overy", "PCC", 40, 0, {
+    directorLocation: "Windsor",
+    workLocations: ["Windsor"],
+  }),
+
+  // --- Equine Team ---
+  makeTherapist("Marley Higgins", "Equine", 40, 0, {
+    directorLocation: "Farm",
+    workLocations: ["Farm"],
+  }),
+  makeTherapist("Katie Pederson", "Equine", 40, 0, {
+    hireDate: "2025-04-14",
+    workLocations: ["Farm"],
+  }),
+  makeTherapist("Savannah Ross", "Equine", 40, 0, {
+    hireDate: "2024-10-07",
+    workLocations: ["Farm"],
+  }),
+  makeTherapist("Dillen Edwards", "Equine", 40, 0, {
+    hireDate: "2025-09-22",
+    workLocations: ["Farm"],
+  }),
 ];
 
 export function getTherapistBySlug(slug: string): Therapist | undefined {
@@ -111,7 +139,23 @@ export function getClinicalDirectors(): Therapist[] {
 }
 
 export function getRegularTherapists(): Therapist[] {
-  return THERAPISTS.filter((t) => !t.isClinicalDirector && t.role !== "Director");
+  return THERAPISTS.filter((t) => !t.isClinicalDirector && t.role !== "Director" && t.role !== "PCC" && t.role !== "Equine");
+}
+
+export function getPCCStaff(): Therapist[] {
+  return THERAPISTS.filter((t) => t.role === "PCC");
+}
+
+export function getEquineTeam(): Therapist[] {
+  return THERAPISTS.filter((t) => t.role === "Equine");
+}
+
+export function getEquineDirector(): Therapist | undefined {
+  return THERAPISTS.find((t) => t.role === "Equine" && t.directorLocation);
+}
+
+export function getEquineStaffMembers(): Therapist[] {
+  return THERAPISTS.filter((t) => t.role === "Equine" && !t.directorLocation);
 }
 
 // All staff who should have a "director" user role (clinical directors + Nicole Summerson)

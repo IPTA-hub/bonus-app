@@ -289,3 +289,131 @@ export function calculateNicoleIndividualBonus(
   }
   return 0;
 }
+
+// ============================================================
+// PCC BONUS STRUCTURE
+// ============================================================
+
+// --- PCC Bonus 1: Reschedule Bonus ---
+// $5 per (reschedule_seen + flex_seen)
+export const PCC_RESCHEDULE_RATE = 5;
+
+export function calculatePCCRescheduleBonus(
+  reschedulesSeen: number,
+  flexSeen: number
+): number {
+  return (reschedulesSeen + flexSeen) * PCC_RESCHEDULE_RATE;
+}
+
+// --- PCC Bonus 2: Eval Bonus ---
+// $25 if evals_filled >= eval_slots - clinic_cancellations
+export const PCC_EVAL_BONUS_AMOUNT = 25;
+
+export function calculatePCCEvalBonus(
+  evalsFilled: number,
+  evalSlots: number,
+  clinicCancellations: number
+): number {
+  const target = evalSlots - clinicCancellations;
+  if (target <= 0) return 0; // No slots to fill
+  return evalsFilled >= target ? PCC_EVAL_BONUS_AMOUNT : 0;
+}
+
+// --- PCC/Equine Bonus 3: Patient Arrivals (shared structure) ---
+// Same volume tier amounts as CD Team Productivity but minimum 100 (not 75)
+export type PatientArrivalVolumeTier = "small" | "medium" | "large";
+
+export function getPatientArrivalVolumeTier(totalScheduled: number): PatientArrivalVolumeTier | null {
+  if (totalScheduled >= 200) return "large";
+  if (totalScheduled >= 150) return "medium";
+  if (totalScheduled >= 100) return "small";
+  return null; // Below minimum of 100
+}
+
+export function getPatientArrivalVolumeTierLabel(tier: PatientArrivalVolumeTier): string {
+  switch (tier) {
+    case "small": return "100-149 scheduled";
+    case "medium": return "150-199 scheduled";
+    case "large": return "200-250 scheduled";
+  }
+}
+
+// Patient Arrivals bonus tiers per volume level
+const PA_BONUS_SMALL: [number, number][] = [
+  [1.0, 100],
+  [0.95, 75],
+  [0.9, 50],
+  [0.85, 25],
+];
+
+const PA_BONUS_MEDIUM: [number, number][] = [
+  [1.0, 110],
+  [0.95, 85],
+  [0.9, 60],
+  [0.85, 35],
+  [0.8, 15],
+];
+
+const PA_BONUS_LARGE: [number, number][] = [
+  [1.0, 120],
+  [0.95, 95],
+  [0.9, 70],
+  [0.85, 45],
+  [0.8, 25],
+];
+
+function getPatientArrivalBonusTiers(volumeTier: PatientArrivalVolumeTier): [number, number][] {
+  switch (volumeTier) {
+    case "small": return PA_BONUS_SMALL;
+    case "medium": return PA_BONUS_MEDIUM;
+    case "large": return PA_BONUS_LARGE;
+  }
+}
+
+export function getPatientArrivalTiersForDisplay(volumeTier: PatientArrivalVolumeTier): { label: string; amount: number }[] {
+  const tiers = getPatientArrivalBonusTiers(volumeTier);
+  return tiers.map(([min, amount]) => {
+    const label = min >= 1.0 ? "100%+" :
+      min >= 0.95 ? "95-99.99%" :
+      min >= 0.9 ? "90-94.99%" :
+      min >= 0.85 ? "85-89.99%" :
+      "80-84.99%";
+    return { label, amount };
+  });
+}
+
+export function calculatePatientArrivalBonus(
+  locationArrivalRate: number,
+  totalScheduledAtLocation: number
+): number {
+  const volumeTier = getPatientArrivalVolumeTier(totalScheduledAtLocation);
+  if (!volumeTier) return 0;
+
+  const tiers = getPatientArrivalBonusTiers(volumeTier);
+  for (const [min, amount] of tiers) {
+    if (locationArrivalRate >= min) {
+      return amount;
+    }
+  }
+  return 0;
+}
+
+// ============================================================
+// EQUINE BONUS STRUCTURE
+// ============================================================
+
+// --- Equine Bonus 1: Staff Retention (same tiers as CD + $100 biannual flat) ---
+// Uses same RETENTION_TIERS from CD section above
+// Plus: $100 biannual flat bonus (tracked separately)
+export const EQUINE_BIANNUAL_BONUS = 100;
+
+// --- Equine Bonus 2: Individual Productivity (Extra Walks) ---
+// $5 per extra walk beyond scheduled sessions
+export const EQUINE_WALK_RATE = 5;
+
+export function calculateEquineWalkBonus(extraWalks: number): number {
+  return extraWalks * EQUINE_WALK_RATE;
+}
+
+// --- Equine Bonus 3: Patient Arrivals ---
+// Uses the same calculatePatientArrivalBonus function as PCC (shared)

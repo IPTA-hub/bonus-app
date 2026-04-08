@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
-import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -37,7 +37,19 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   // Recruitment fields (Nicole Summerson only)
   const [recruitmentHires, setRecruitmentHires] = useState("");
   const [recruitmentEvents, setRecruitmentEvents] = useState("");
+  // PCC fields
+  const [pccReschedulesSeen, setPccReschedulesSeen] = useState("");
+  const [pccFlexSeen, setPccFlexSeen] = useState("");
+  const [pccEvalSlots, setPccEvalSlots] = useState("");
+  const [pccEvalsFilled, setPccEvalsFilled] = useState("");
+  const [pccClinicCancellations, setPccClinicCancellations] = useState("");
+  // Equine fields
+  const [equineExtraWalks, setEquineExtraWalks] = useState("");
+
   const isDirector = therapist.role === "Director";
+  const isPCC = therapist.role === "PCC";
+  const isEquine = therapist.role === "Equine";
+  const hidePatientTracking = isPCC || isEquine;
 
   const [result, setResult] = useState<{
     success: boolean;
@@ -159,6 +171,25 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setRecruitmentHires(String(submission.recruitment_hires || ""));
     setRecruitmentEvents(String(submission.recruitment_events || ""));
 
+    // Load PCC/Equine role-specific data
+    if (submission.role_bonus_data) {
+      try {
+        const rbd = JSON.parse(submission.role_bonus_data);
+        if (isPCC) {
+          setPccReschedulesSeen(String(rbd.reschedules_seen || ""));
+          setPccFlexSeen(String(rbd.flex_seen || ""));
+          setPccEvalSlots(String(rbd.eval_slots || ""));
+          setPccEvalsFilled(String(rbd.evals_filled || ""));
+          setPccClinicCancellations(String(rbd.clinic_cancellations || ""));
+        }
+        if (isEquine) {
+          setEquineExtraWalks(String(rbd.extra_walks || ""));
+        }
+      } catch {
+        // Old data without role_bonus_data
+      }
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -175,6 +206,12 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setEvalsWithDevCodes("");
     setRecruitmentHires("");
     setRecruitmentEvents("");
+    setPccReschedulesSeen("");
+    setPccFlexSeen("");
+    setPccEvalSlots("");
+    setPccEvalsFilled("");
+    setPccClinicCancellations("");
+    setEquineExtraWalks("");
     setNotes("");
     setResult(null);
     setError("");
@@ -226,6 +263,17 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         notes,
         recruitment_hires: isDirector ? (parseInt(recruitmentHires) || 0) : 0,
         recruitment_events: isDirector ? (parseInt(recruitmentEvents) || 0) : 0,
+        role_bonus_data: isPCC
+          ? {
+              reschedules_seen: parseInt(pccReschedulesSeen) || 0,
+              flex_seen: parseInt(pccFlexSeen) || 0,
+              eval_slots: parseInt(pccEvalSlots) || 0,
+              evals_filled: parseInt(pccEvalsFilled) || 0,
+              clinic_cancellations: parseInt(pccClinicCancellations) || 0,
+            }
+          : isEquine
+          ? { extra_walks: parseInt(equineExtraWalks) || 0 }
+          : undefined,
       };
 
       if (isMultiLocation) {
@@ -352,7 +400,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </div>
           </div>
 
-          {!isPto && (
+          {!isPto && !hidePatientTracking && (
             <>
               {isMultiLocation ? (
                 /* ---- Per-Location Fields ---- */
@@ -588,6 +636,125 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </>
           )}
 
+          {/* PCC-specific fields */}
+          {isPCC && !isPto && (
+            <div className="border-t border-gray-200 pt-4 mt-2 space-y-4">
+              <h4 className="text-sm font-semibold text-gray-700">
+                Reschedule Bonus
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reschedules Seen
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pccReschedulesSeen}
+                    onChange={(e) => setPccReschedulesSeen(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Flex Patients Seen
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pccFlexSeen}
+                    onChange={(e) => setPccFlexSeen(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                ${PCC_RESCHEDULE_RATE} per reschedule/flex patient seen
+              </p>
+
+              <h4 className="text-sm font-semibold text-gray-700 mt-4">
+                Eval Bonus
+              </h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Eval Slots
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pccEvalSlots}
+                    onChange={(e) => setPccEvalSlots(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Evals Filled
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pccEvalsFilled}
+                    onChange={(e) => setPccEvalsFilled(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Clinic Cancels
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pccClinicCancellations}
+                    onChange={(e) => setPccClinicCancellations(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                ${PCC_EVAL_BONUS_AMOUNT} bonus if evals filled &ge; eval slots minus clinic cancellations
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Patient Arrivals bonus calculated on dashboard (based on location-wide arrival rate)
+              </p>
+            </div>
+          )}
+
+          {/* Equine-specific fields */}
+          {isEquine && !isPto && (
+            <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700">
+                Extra Walks (Individual Productivity)
+              </h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Extra Walks This Week
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={equineExtraWalks}
+                  onChange={(e) => setEquineExtraWalks(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                ${EQUINE_WALK_RATE} per extra walk beyond scheduled sessions
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Patient Arrivals bonus calculated on dashboard (based on Farm arrival rate)
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes (optional)
@@ -679,12 +846,18 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   Company productivity bonus calculated on your dashboard
                 </p>
               )}
+              {(isPCC || isEquine) && (
+                <p className="text-blue-700 text-sm mt-1">
+                  Patient Arrivals bonus calculated on your dashboard
+                </p>
+              )}
               <p className="text-green-800 border-t border-green-200 pt-2 mt-2">
                 Total Weekly Bonus:{" "}
                 <span className="font-bold text-xl">
                   ${(result.bonus_amount + (result.eval_bonus || 0) + (result.recruitment_bonus || 0)).toFixed(2)}
                 </span>
                 {isDirector && <span className="text-sm ml-1">(+ company bonus)</span>}
+                {(isPCC || isEquine) && <span className="text-sm ml-1">(+ patient arrivals)</span>}
               </p>
             </div>
           ) : (
@@ -782,6 +955,73 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        ) : isPCC ? (
+          /* ---- PCC 3-Bonus Structure ---- */
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">1</span>
+                Reschedule Bonus
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">Per reschedule/flex seen</span>
+                <span className="font-semibold text-gray-900">${PCC_RESCHEDULE_RATE}</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">2</span>
+                Eval Bonus
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">100% evals filled (minus clinic cancels)</span>
+                <span className="font-semibold text-gray-900">${PCC_EVAL_BONUS_AMOUNT}</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">3</span>
+                Patient Arrivals
+              </h3>
+              <p className="text-xs text-gray-500">
+                Based on {therapist.directorLocation || "your location"}&apos;s weekly arrival rate &amp; volume (100+ scheduled). Calculated on dashboard.
+              </p>
+            </div>
+          </div>
+        ) : isEquine ? (
+          /* ---- Equine 3-Bonus Structure ---- */
+          <div className="space-y-4">
+            {therapist.directorLocation && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">1</span>
+                  Staff Retention (Annual)
+                </h3>
+                <p className="text-xs text-gray-500">
+                  $100–$500 based on years of service + ${EQUINE_BIANNUAL_BONUS} biannual flat bonus. Calculated on admin dashboard.
+                </p>
+              </div>
+            )}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">{therapist.directorLocation ? "2" : "1"}</span>
+                Individual Productivity (Extra Walks)
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">Per extra walk</span>
+                <span className="font-semibold text-gray-900">${EQUINE_WALK_RATE}</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">{therapist.directorLocation ? "3" : "2"}</span>
+                Patient Arrivals
+              </h3>
+              <p className="text-xs text-gray-500">
+                Based on Farm&apos;s weekly arrival rate &amp; volume (100+ scheduled). Calculated on dashboard.
+              </p>
             </div>
           </div>
         ) : (
