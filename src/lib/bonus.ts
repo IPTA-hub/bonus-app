@@ -417,3 +417,14 @@ export function calculateEquineWalkBonus(extraWalks: number): number {
 
 // --- Equine Bonus 3: Patient Arrivals ---
 // Uses the same calculatePatientArrivalBonus function as PCC (shared)
+
+// ============================================================
+// CAROLEE JAYNES — SPONSORSHIP BONUS
+// ============================================================
+// New sponsorship for IH: 5% of total sponsorship amount
+export const SPONSORSHIP_RATE = 0.05;
+export const SPONSORSHIP_SLUG = "carolee-jaynes";
+
+export function calculateSponsorshipBonus(sponsorshipAmount: number): number {
+  return Math.round(sponsorshipAmount * SPONSORSHIP_RATE * 100) / 100;
+}

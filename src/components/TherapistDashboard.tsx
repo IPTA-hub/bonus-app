@@ -10,8 +10,8 @@ import {
   MonthlyBonusChart,
   YearlySummary,
 } from "./Charts";
-import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, calculatePatientArrivalBonus, PCC_RESCHEDULE_RATE, EQUINE_WALK_RATE } from "@/lib/bonus";
-import type { PCCBonusData, EquineBonusData } from "@/lib/db";
+import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, calculatePatientArrivalBonus, PCC_RESCHEDULE_RATE, EQUINE_WALK_RATE, SPONSORSHIP_SLUG } from "@/lib/bonus";
+import type { PCCBonusData, EquineBonusData, SponsorshipBonusData } from "@/lib/db";
 
 export default function TherapistDashboard({
   therapist,
@@ -31,6 +31,7 @@ export default function TherapistDashboard({
   const isDirector = therapist.role === "Director";
   const isPCC = therapist.role === "PCC";
   const isEquine = therapist.role === "Equine";
+  const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
   const needsAllData = isDirector || isPCC || isEquine;
 
   useEffect(() => {
@@ -375,6 +376,7 @@ export default function TherapistDashboard({
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Loc. Rate</th>}
                   {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Walks</th>}
                   {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Farm Rate</th>}
+                  {hasSponsorshipBonus && <th className="px-6 py-3 font-medium text-gray-500">Sponsorship</th>}
                   {(therapist.role === "OTR" || therapist.role === "SLP") && (
                     <th className="px-6 py-3 font-medium text-gray-500">Evals</th>
                   )}
@@ -504,6 +506,20 @@ export default function TherapistDashboard({
                                 ) : "-"}
                               </td>
                             </>
+                          );
+                        })()}
+                        {/* Sponsorship column (Carolee Jaynes) */}
+                        {hasSponsorshipBonus && (() => {
+                          let rbd: SponsorshipBonusData = { sponsorship_amount: 0, sponsorship_bonus: 0 };
+                          try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                          return (
+                            <td className="px-6 py-3">
+                              {row.is_pto ? "-" : (
+                                rbd.sponsorship_bonus > 0
+                                  ? <span className="text-emerald-600 font-medium">${rbd.sponsorship_bonus.toFixed(2)} <span className="text-gray-400 text-xs">(${rbd.sponsorship_amount.toLocaleString()})</span></span>
+                                  : "-"
+                              )}
+                            </td>
                           );
                         })()}
                         {(therapist.role === "OTR" || therapist.role === "SLP") && (

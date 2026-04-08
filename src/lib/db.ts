@@ -134,6 +134,12 @@ export interface EquineBonusData {
   walk_bonus: number;
 }
 
+// Carolee Jaynes sponsorship bonus data shape
+export interface SponsorshipBonusData {
+  sponsorship_amount: number;
+  sponsorship_bonus: number;
+}
+
 export async function upsertSubmission(data: {
   therapist_slug: string;
   week_start: string;

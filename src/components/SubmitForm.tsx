@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
-import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG } from "@/lib/bonus";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -45,10 +45,13 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [pccClinicCancellations, setPccClinicCancellations] = useState("");
   // Equine fields
   const [equineExtraWalks, setEquineExtraWalks] = useState("");
+  // Sponsorship fields (Carolee Jaynes)
+  const [sponsorshipAmount, setSponsorshipAmount] = useState("");
 
   const isDirector = therapist.role === "Director";
   const isPCC = therapist.role === "PCC";
   const isEquine = therapist.role === "Equine";
+  const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
   const hidePatientTracking = isPCC || isEquine;
 
   const [result, setResult] = useState<{
@@ -185,6 +188,9 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         if (isEquine) {
           setEquineExtraWalks(String(rbd.extra_walks || ""));
         }
+        if (hasSponsorshipBonus) {
+          setSponsorshipAmount(String(rbd.sponsorship_amount || ""));
+        }
       } catch {
         // Old data without role_bonus_data
       }
@@ -212,6 +218,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setPccEvalsFilled("");
     setPccClinicCancellations("");
     setEquineExtraWalks("");
+    setSponsorshipAmount("");
     setNotes("");
     setResult(null);
     setError("");
@@ -273,6 +280,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             }
           : isEquine
           ? { extra_walks: parseInt(equineExtraWalks) || 0 }
+          : hasSponsorshipBonus
+          ? { sponsorship_amount: parseFloat(sponsorshipAmount) || 0 }
           : undefined,
       };
 
@@ -727,6 +736,37 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </div>
           )}
 
+          {/* Sponsorship fields (Carolee Jaynes) */}
+          {hasSponsorshipBonus && !isPto && (
+            <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700">
+                Sponsorship Bonus
+              </h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New IH Sponsorship Amount ($)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={sponsorshipAmount}
+                  onChange={(e) => setSponsorshipAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                {(SPONSORSHIP_RATE * 100).toFixed(0)}% of total sponsorship amount
+                {sponsorshipAmount && parseFloat(sponsorshipAmount) > 0 && (
+                  <span className="text-green-600 font-medium ml-1">
+                    = ${(parseFloat(sponsorshipAmount) * SPONSORSHIP_RATE).toFixed(2)} bonus
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Equine-specific fields */}
           {isEquine && !isPto && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
@@ -1043,6 +1083,18 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                 </div>
               ))}
             </div>
+            {hasSponsorshipBonus && (
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">+</span>
+                  Sponsorship Bonus
+                </h3>
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-sm text-gray-600">New IH sponsorship</span>
+                  <span className="font-semibold text-gray-900">{(SPONSORSHIP_RATE * 100).toFixed(0)}% of total</span>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission, deleteSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
-import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus } from "@/lib/bonus";
+import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus, calculateSponsorshipBonus, SPONSORSHIP_SLUG } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -141,6 +141,19 @@ export async function POST(request: NextRequest) {
       });
       // For Equine staff, bonus_amount stores walk bonus
       bonusAmount = equineWalkBonus;
+    }
+
+    // Carolee Jaynes — Sponsorship bonus (on top of regular OTR bonus)
+    if (therapist_slug === SPONSORSHIP_SLUG && !pto && roleBonusInput) {
+      const sponsorshipAmount = parseFloat(String(roleBonusInput.sponsorship_amount)) || 0;
+      const sponsorshipBonus = calculateSponsorshipBonus(sponsorshipAmount);
+
+      roleBonusDataStr = JSON.stringify({
+        sponsorship_amount: sponsorshipAmount,
+        sponsorship_bonus: sponsorshipBonus,
+      });
+      // Add sponsorship bonus on top of the arrival rate bonus already calculated
+      bonusAmount += sponsorshipBonus;
     }
 
     await upsertSubmission({
