@@ -21,18 +21,18 @@ export default async function TherapistDashboardPage({
   const userRole = session?.role || "therapist";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <Link
             href="/dashboard"
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-ipta-teal hover:text-ipta-teal-light text-sm font-medium"
           >
             &larr; Clinic Dashboard
           </Link>
           <Link
             href={`/submit/${slug}`}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+            className="px-4 py-2 bg-ipta-teal text-white text-sm font-medium rounded-lg hover:bg-ipta-teal-light transition"
           >
             Submit Weekly Data
           </Link>

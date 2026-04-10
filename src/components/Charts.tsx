@@ -60,19 +60,19 @@ export function WeeklyArrivalChart({ data }: WeeklyChartProps) {
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+        <XAxis dataKey="week" tick={{ fontSize: 10 }} />
         <YAxis
           tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
           domain={[0, 1.3]}
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 10 }}
         />
         <Tooltip
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           formatter={(value: any) => [formatPct(Number(value)), "Arrival Rate"]}
         />
-        <ReferenceLine y={0.85} stroke="#f59e0b" strokeDasharray="5 5" label={{ value: "85%", position: "right", fontSize: 11 }} />
-        <ReferenceLine y={0.9} stroke="#3b82f6" strokeDasharray="5 5" label={{ value: "90%", position: "right", fontSize: 11 }} />
-        <ReferenceLine y={1.0} stroke="#16a34a" strokeDasharray="5 5" label={{ value: "100%", position: "right", fontSize: 11 }} />
+        <ReferenceLine y={0.85} stroke="#f59e0b" strokeDasharray="5 5" label={{ value: "85%", position: "right", fontSize: 9 }} />
+        <ReferenceLine y={0.9} stroke="#3b82f6" strokeDasharray="5 5" label={{ value: "90%", position: "right", fontSize: 9 }} />
+        <ReferenceLine y={1.0} stroke="#16a34a" strokeDasharray="5 5" label={{ value: "100%", position: "right", fontSize: 9 }} />
         <Line
           type="monotone"
           dataKey="rate"
@@ -136,11 +136,11 @@ export function MonthlyArrivalChart({ data }: WeeklyChartProps) {
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={monthly}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+        <XAxis dataKey="month" tick={{ fontSize: 10 }} />
         <YAxis
           tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
           domain={[0, 1.3]}
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 10 }}
         />
         <Tooltip
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,8 +176,8 @@ export function MonthlyBonusChart({ data }: WeeklyChartProps) {
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={monthly}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-        <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 12 }} />
+        <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+        <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 10 }} />
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Tooltip formatter={(value: any) => [formatCurrency(Number(value)), "Total Bonus"]} />
         <Bar dataKey="totalBonus" fill="#4f46e5" radius={[4, 4, 0, 0]} />
@@ -211,11 +211,11 @@ export function WeeklyUtilizationChart({ data }: WeeklyChartProps) {
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+        <XAxis dataKey="week" tick={{ fontSize: 10 }} />
         <YAxis
           tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
           domain={[0, 1.2]}
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 10 }}
         />
         <Tooltip
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,7 +224,7 @@ export function WeeklyUtilizationChart({ data }: WeeklyChartProps) {
             return [value, name];
           }}
         />
-        <ReferenceLine y={1.0} stroke="#16a34a" strokeDasharray="5 5" label={{ value: "100%", position: "right", fontSize: 11 }} />
+        <ReferenceLine y={1.0} stroke="#16a34a" strokeDasharray="5 5" label={{ value: "100%", position: "right", fontSize: 9 }} />
         <Line
           type="monotone"
           dataKey="rate"

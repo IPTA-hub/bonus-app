@@ -134,7 +134,7 @@ export default function TherapistDashboard({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ipta-teal" />
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function TherapistDashboard({
         <div>
           <h2 className="text-2xl font-bold text-gray-900">{therapist.name}</h2>
           <div className="flex gap-2 mt-1">
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
               {therapist.role}
             </span>
             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
@@ -181,12 +181,12 @@ export default function TherapistDashboard({
               </p>
               <p className="text-xs text-purple-500 mt-1">Based on clinic-wide arrival rate</p>
             </div>
-            <div className="bg-blue-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-blue-600 font-medium uppercase">Individual</p>
-              <p className="text-xl font-bold text-blue-700">
+            <div className="bg-ipta-teal-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-ipta-teal font-medium uppercase">Individual</p>
+              <p className="text-xl font-bold text-ipta-teal">
                 ${data.reduce((a, s) => a + (Number(s.bonus_amount) || 0), 0).toFixed(0)}
               </p>
-              <p className="text-xs text-blue-500 mt-1">Arrival rate bonus</p>
+              <p className="text-xs text-ipta-teal/70 mt-1">Arrival rate bonus</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 text-center">
               <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
@@ -319,7 +319,7 @@ export default function TherapistDashboard({
       {isEquineDirector && data.length > 0 && (
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Equine Director Bonus Breakdown</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-orange-50 rounded-lg p-3 text-center">
               <p className="text-xs text-orange-600 font-medium uppercase">Staff Retention</p>
               <p className="text-xl font-bold text-orange-700">
@@ -334,6 +334,25 @@ export default function TherapistDashboard({
                   const b = getRetentionBonus(yrs);
                   return `${s.name.split(" ")[0]}: ${yrs}yr${yrs !== 1 ? "s" : ""}${b > 0 ? ` ($${b})` : ""}`;
                 }).join(" · ")}
+              </p>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-amber-600 font-medium uppercase">Extra Walks</p>
+              <p className="text-xl font-bold text-amber-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.walk_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-amber-500 mt-1">
+                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.extra_walks || 0);
+                  } catch { return a; }
+                }, 0)} walks @ ${EQUINE_WALK_RATE}/each
               </p>
             </div>
             <div className="bg-purple-50 rounded-lg p-3 text-center">
@@ -351,8 +370,14 @@ export default function TherapistDashboard({
               <p className="text-xl font-bold text-green-700">
                 ${(
                   data.filter((s) => !s.is_pto).reduce((a, s) => {
+                    let weekTotal = 0;
+                    try {
+                      const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                      weekTotal += rbd.walk_bonus || 0;
+                    } catch { /* */ }
                     const arrResult = getLocationArrivalForWeek(s.week_start, "Farm");
-                    return a + (arrResult?.bonus || 0);
+                    weekTotal += arrResult?.bonus || 0;
+                    return a + weekTotal;
                   }, 0) +
                   getEquineStaffMembers().reduce((a, staff) => {
                     const yrs = staff.hireDate ? getYearsOfService(staff.hireDate) : 0;
@@ -360,7 +385,7 @@ export default function TherapistDashboard({
                   }, 0)
                 ).toFixed(0)}
               </p>
-              <p className="text-xs text-gray-500 mt-1">Retention + Patient Arrivals</p>
+              <p className="text-xs text-gray-500 mt-1">All 3 bonuses combined</p>
             </div>
           </div>
         </div>
@@ -407,7 +432,265 @@ export default function TherapistDashboard({
           <h3 className="text-lg font-semibold text-gray-900 p-6 pb-3">
             Weekly History
           </h3>
-          <div className="overflow-x-auto">
+          {/* Mobile card view */}
+          <div className="md:hidden space-y-3 p-4">
+            {data
+              .slice()
+              .reverse()
+              .map((row) => {
+                const weekDate = new Date(row.week_start)
+                  .toISOString()
+                  .split("T")[0];
+                const isDeleting = deleteConfirm === weekDate;
+
+                // Compute bonus total (same logic as table)
+                const bonusTotal = (() => {
+                  let total = Number(row.bonus_amount) + Number(row.eval_bonus || 0) + Number(row.recruitment_bonus || 0);
+                  if (isDirector && !row.is_pto) {
+                    const compRate = getCompanyRateForWeek(row.week_start);
+                    if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
+                  }
+                  if (isPCC && !row.is_pto) {
+                    const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+                    const locArr = getLocationArrivalForWeek(row.week_start, loc);
+                    if (locArr) total += locArr.bonus;
+                  }
+                  if (isEquineDirector && !row.is_pto) {
+                    const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
+                    if (farmArr) total += farmArr.bonus;
+                  }
+                  return total;
+                })();
+
+                // PCC bonus data
+                let pccData: PCCBonusData = { reschedules_seen: 0, flex_seen: 0, eval_slots: 0, evals_filled: 0, clinic_cancellations: 0, reschedule_bonus: 0, eval_bonus: 0 };
+                if (isPCC && row.role_bonus_data) {
+                  try { pccData = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                }
+                const pccLoc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+                const pccLocArr = isPCC && !row.is_pto ? getLocationArrivalForWeek(row.week_start, pccLoc) : null;
+
+                // Equine bonus data
+                let equineData: EquineBonusData = { extra_walks: 0, walk_bonus: 0 };
+                if (isEquine && row.role_bonus_data) {
+                  try { equineData = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                }
+                const farmArr = isEquineDirector && !row.is_pto ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
+
+                // Sponsorship data
+                let sponsorData: SponsorshipBonusData = { sponsorship_amount: 0, sponsorship_bonus: 0 };
+                if (hasSponsorshipBonus && row.role_bonus_data) {
+                  try { sponsorData = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                }
+
+                // Director company rate
+                const compRate = isDirector && !row.is_pto ? getCompanyRateForWeek(row.week_start) : null;
+                const compBonus = compRate !== null ? calculateCompanyProductivityBonus(compRate) : 0;
+
+                return (
+                  <div key={row.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                    {/* Header: week date + bonus */}
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-900">
+                        {new Date(row.week_start).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <span className={`text-lg font-bold ${bonusTotal > 0 ? "text-green-700" : "text-gray-400"}`}>
+                        {bonusTotal > 0 ? `$${bonusTotal.toFixed(2)}` : "-"}
+                      </span>
+                    </div>
+
+                    {/* Key metrics grid */}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {/* Standard therapist metrics */}
+                      {!isPCC && !isEquine && (
+                        <>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Available</p>
+                            <p className="font-medium">{row.is_pto ? "-" : (row.available || "-")}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Sched / Seen</p>
+                            <p className="font-medium">
+                              {row.is_pto ? (
+                                <span className="text-amber-600">PTO</span>
+                              ) : (
+                                `${row.scheduled} / ${row.seen}`
+                              )}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Utilization</p>
+                            <p className="font-medium text-purple-600">
+                              {row.utilization_rate !== null && row.utilization_rate !== undefined
+                                ? `${(Number(row.utilization_rate) * 100).toFixed(1)}%`
+                                : "-"}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Arrival Rate</p>
+                            <p className={`font-medium ${
+                              row.arrival_rate !== null
+                                ? Number(row.arrival_rate) >= 0.9
+                                  ? "text-green-600"
+                                  : Number(row.arrival_rate) >= 0.85
+                                  ? "text-amber-600"
+                                  : "text-red-600"
+                                : ""
+                            }`}>
+                              {row.arrival_rate !== null
+                                ? `${(Number(row.arrival_rate) * 100).toFixed(1)}%`
+                                : "-"}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* PCC metrics */}
+                      {isPCC && (
+                        <>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Resched</p>
+                            <p className="font-medium">{row.is_pto ? "-" : pccData.reschedules_seen}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Flex</p>
+                            <p className="font-medium">{row.is_pto ? "-" : pccData.flex_seen}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Eval</p>
+                            <p className="font-medium">
+                              {row.is_pto ? "-" : (
+                                pccData.eval_bonus > 0
+                                  ? <span className="text-green-600">${pccData.eval_bonus}</span>
+                                  : <span className="text-gray-400">$0</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Loc. Rate</p>
+                            <p className="font-medium text-purple-600">
+                              {pccLocArr
+                                ? `${(pccLocArr.rate * 100).toFixed(1)}%`
+                                : "-"}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Equine metrics */}
+                      {isEquine && (
+                        <>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Walks</p>
+                            <p className="font-medium">
+                              {row.is_pto ? "-" : (
+                                equineData.extra_walks > 0
+                                  ? <span className="text-amber-700">{equineData.extra_walks} <span className="text-green-600 text-xs">(${equineData.walk_bonus})</span></span>
+                                  : "0"
+                              )}
+                            </p>
+                          </div>
+                          {isEquineDirector && (
+                            <div className="bg-gray-50 rounded p-2">
+                              <p className="text-xs text-gray-500">Farm Rate</p>
+                              <p className="font-medium text-purple-600">
+                                {farmArr
+                                  ? `${(farmArr.rate * 100).toFixed(1)}%`
+                                  : "-"}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Additional role-specific fields */}
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {/* Sponsorship */}
+                      {hasSponsorshipBonus && !row.is_pto && sponsorData.sponsorship_bonus > 0 && (
+                        <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
+                          Sponsor: ${sponsorData.sponsorship_bonus.toFixed(2)}
+                        </span>
+                      )}
+
+                      {/* Evals for OTR/SLP */}
+                      {(therapist.role === "OTR" || therapist.role === "SLP") && !row.is_pto && (
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                          Evals: {row.evals_completed || 0}
+                        </span>
+                      )}
+                      {therapist.role === "OTR" && !row.is_pto && (
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                          w/ Dev: {row.evals_with_dev_codes || 0}
+                        </span>
+                      )}
+
+                      {/* Director fields */}
+                      {isDirector && !row.is_pto && (Number(row.recruitment_bonus) || 0) > 0 && (
+                        <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
+                          Recruit: ${Number(row.recruitment_bonus).toFixed(0)}
+                        </span>
+                      )}
+                      {isDirector && compRate !== null && (
+                        <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                          Co. Rate: {(compRate * 100).toFixed(1)}%{compBonus > 0 && ` ($${compBonus})`}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    {row.notes && (
+                      <p className="text-xs text-gray-500 truncate">{row.notes}</p>
+                    )}
+
+                    {/* Actions */}
+                    {canModify && (
+                      <div className="flex gap-2 pt-1">
+                        {isDeleting ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(weekDate)}
+                              disabled={deleting}
+                              className="min-h-[44px] flex-1 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition"
+                            >
+                              {deleting ? "..." : "Confirm Delete"}
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="min-h-[44px] flex-1 text-sm font-medium text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <a
+                              href={`/submit/${therapist.slug}`}
+                              className="min-h-[44px] flex-1 flex items-center justify-center text-sm font-medium text-ipta-teal bg-ipta-teal-50 rounded-lg hover:bg-ipta-teal-100 transition"
+                            >
+                              Edit
+                            </a>
+                            <button
+                              onClick={() => setDeleteConfirm(weekDate)}
+                              className="min-h-[44px] flex-1 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left">
@@ -421,7 +704,7 @@ export default function TherapistDashboard({
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Flex</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Eval</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Loc. Rate</th>}
-                  {isEquineStaff && <th className="px-6 py-3 font-medium text-gray-500">Walks</th>}
+                  {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Walks</th>}
                   {isEquineDirector && <th className="px-6 py-3 font-medium text-gray-500">Farm Rate</th>}
                   {hasSponsorshipBonus && <th className="px-6 py-3 font-medium text-gray-500">Sponsorship</th>}
                   {(therapist.role === "OTR" || therapist.role === "SLP") && (
@@ -536,8 +819,8 @@ export default function TherapistDashboard({
                             </>
                           );
                         })()}
-                        {/* Equine Staff — Walks column */}
-                        {isEquineStaff && (() => {
+                        {/* All Equine — Walks column */}
+                        {isEquine && (() => {
                           let rbd: EquineBonusData = { extra_walks: 0, walk_bonus: 0 };
                           try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
                           return (
@@ -655,7 +938,7 @@ export default function TherapistDashboard({
                               <div className="flex items-center gap-1">
                                 <a
                                   href={`/submit/${therapist.slug}`}
-                                  className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
+                                  className="px-2 py-1 text-xs font-medium text-ipta-teal bg-ipta-teal-50 rounded hover:bg-ipta-teal-100 transition"
                                 >
                                   Edit
                                 </a>

@@ -83,7 +83,7 @@ export default function ClinicDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ipta-teal" />
       </div>
     );
   }
@@ -179,7 +179,56 @@ export default function ClinicDashboard() {
         <h3 className="text-lg font-semibold text-gray-900 p-6 pb-3">
           All Therapists
         </h3>
-        <div className="overflow-x-auto">
+        {/* Mobile card view */}
+        <div className="md:hidden space-y-3 p-4">
+          {summaries.map((s) => (
+            <div key={s.slug} className="border border-gray-100 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <Link href={`/dashboard/${s.slug}`} className="font-semibold text-gray-900 hover:text-ipta-teal">
+                  {s.name}
+                </Link>
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
+                  {s.role}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <p className="text-xs text-gray-500">Utilization</p>
+                  <p className="font-medium text-purple-600">
+                    {s.avgUtilization !== null ? `${(s.avgUtilization * 100).toFixed(1)}%` : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Arrival Rate</p>
+                  <p className={`font-medium ${s.avgRate !== null ? (s.avgRate >= 0.9 ? "text-green-600" : s.avgRate >= 0.85 ? "text-amber-600" : "text-red-600") : "text-gray-400"}`}>
+                    {s.avgRate !== null ? `${(s.avgRate * 100).toFixed(1)}%` : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Total Bonus</p>
+                  <p className="font-medium text-green-600">
+                    {s.totalBonus > 0 ? `$${s.totalBonus.toFixed(2)}` : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Weeks</p>
+                  <p className="font-medium text-gray-900">{s.weeksWorked}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Link href={`/submit/${s.slug}`} className="flex-1 text-center py-2.5 text-sm font-medium text-ipta-teal bg-ipta-teal-50 rounded-lg hover:bg-ipta-teal-100 min-h-[44px] flex items-center justify-center">
+                  Submit
+                </Link>
+                <Link href={`/dashboard/${s.slug}`} className="flex-1 text-center py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 min-h-[44px] flex items-center justify-center">
+                  Dashboard
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-left">
@@ -198,13 +247,13 @@ export default function ClinicDashboard() {
                   <td className="px-6 py-3 font-medium text-gray-900">
                     <Link
                       href={`/dashboard/${s.slug}`}
-                      className="hover:text-blue-600"
+                      className="hover:text-ipta-teal"
                     >
                       {s.name}
                     </Link>
                   </td>
                   <td className="px-6 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
                       {s.role}
                     </span>
                   </td>
@@ -242,13 +291,13 @@ export default function ClinicDashboard() {
                     <div className="flex gap-2">
                       <Link
                         href={`/submit/${s.slug}`}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                        className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium"
                       >
                         Submit
                       </Link>
                       <Link
                         href={`/dashboard/${s.slug}`}
-                        className="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+                        className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium"
                       >
                         Dashboard
                       </Link>

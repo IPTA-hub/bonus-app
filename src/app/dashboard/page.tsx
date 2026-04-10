@@ -3,7 +3,7 @@ import AdminDashboard from "@/components/AdminDashboard";
 
 export default function DashboardPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -16,7 +16,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/"
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            className="text-ipta-teal hover:text-ipta-teal-light text-sm font-medium"
           >
             &larr; Staff Directory
           </Link>

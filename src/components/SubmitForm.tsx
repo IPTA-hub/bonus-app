@@ -333,7 +333,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{therapist.name}</h2>
           <div className="flex gap-3 mt-2">
-            <span className="px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            <span className="px-2.5 py-0.5 rounded-full text-sm font-medium bg-ipta-teal-50 text-ipta-teal">
               {therapist.role}
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
@@ -375,7 +375,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               type="date"
               value={weekStart}
               onChange={(e) => setWeekStart(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
               required
             />
           </div>
@@ -386,7 +386,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               id="pto"
               checked={isPto}
               onChange={(e) => setIsPto(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-5 h-5 text-ipta-teal rounded focus:ring-ipta-teal"
             />
             <label htmlFor="pto" className="text-sm font-medium text-gray-700">
               PTO / Holiday Week
@@ -404,7 +404,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     type="checkbox"
                     checked={selectedLocations.includes(loc)}
                     onChange={() => toggleLocation(loc)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    className="w-5 h-5 text-ipta-teal rounded focus:ring-ipta-teal"
                   />
                   <span className="text-sm text-gray-700">{loc}</span>
                 </label>
@@ -417,7 +417,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               {isMultiLocation ? (
                 /* ---- Per-Location Fields ---- */
                 <div className="space-y-4">
-                  <p className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  <p className="text-sm text-ipta-teal bg-ipta-teal-50 border border-ipta-teal-100 rounded-lg px-3 py-2">
                     Enter data separately for each location you worked this week. Totals are calculated automatically.
                   </p>
                   {selectedLocations.map((loc) => {
@@ -441,7 +441,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                           />
                           {loc}
                         </h4>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
                               Available
@@ -453,7 +453,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                               onChange={(e) =>
                                 updateLocationEntry(loc, "available", e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                               placeholder="0"
                             />
                           </div>
@@ -468,7 +468,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                               onChange={(e) =>
                                 updateLocationEntry(loc, "scheduled", e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                               placeholder="0"
                             />
                           </div>
@@ -483,7 +483,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                               onChange={(e) =>
                                 updateLocationEntry(loc, "seen", e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                               placeholder="0"
                             />
                           </div>
@@ -492,19 +492,19 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     );
                   })}
                   {/* Totals row */}
-                  <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
-                    <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="border border-ipta-teal-100 rounded-lg p-3 bg-ipta-teal-50">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
                       <div>
-                        <p className="text-xs text-blue-600 font-medium">Total Available</p>
-                        <p className="text-lg font-bold text-blue-900">{multiTotalAvailable}</p>
+                        <p className="text-xs text-ipta-teal font-medium">Total Available</p>
+                        <p className="text-lg font-bold text-ipta-teal">{multiTotalAvailable}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-blue-600 font-medium">Total Scheduled</p>
-                        <p className="text-lg font-bold text-blue-900">{multiTotalScheduled}</p>
+                        <p className="text-xs text-ipta-teal font-medium">Total Scheduled</p>
+                        <p className="text-lg font-bold text-ipta-teal">{multiTotalScheduled}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-blue-600 font-medium">Total Seen</p>
-                        <p className="text-lg font-bold text-blue-900">{multiTotalSeen}</p>
+                        <p className="text-xs text-ipta-teal font-medium">Total Seen</p>
+                        <p className="text-lg font-bold text-ipta-teal">{multiTotalSeen}</p>
                       </div>
                     </div>
                   </div>
@@ -521,7 +521,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                       min="0"
                       value={available}
                       onChange={(e) => setAvailable(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                       placeholder="e.g. 45"
                       required={!isPto}
                     />
@@ -539,7 +539,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                       min="0"
                       value={scheduled}
                       onChange={(e) => setScheduled(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                       placeholder="e.g. 42"
                       required={!isPto}
                     />
@@ -554,7 +554,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                       min="0"
                       value={seen}
                       onChange={(e) => setSeen(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                       placeholder="e.g. 38"
                       required={!isPto}
                     />
@@ -578,7 +578,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                         min="0"
                         value={evalsCompleted}
                         onChange={(e) => setEvalsCompleted(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                         placeholder="0"
                       />
                     </div>
@@ -592,7 +592,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                           min="0"
                           value={evalsWithDevCodes}
                           onChange={(e) => setEvalsWithDevCodes(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                           placeholder="0"
                         />
                       </div>
@@ -622,7 +622,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                         min="0"
                         value={recruitmentHires}
                         onChange={(e) => setRecruitmentHires(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                         placeholder="0"
                       />
                     </div>
@@ -635,7 +635,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                         min="0"
                         value={recruitmentEvents}
                         onChange={(e) => setRecruitmentEvents(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                         placeholder="0"
                       />
                     </div>
@@ -664,7 +664,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     min="0"
                     value={pccReschedulesSeen}
                     onChange={(e) => setPccReschedulesSeen(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                     placeholder="0"
                   />
                 </div>
@@ -677,7 +677,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     min="0"
                     value={pccFlexSeen}
                     onChange={(e) => setPccFlexSeen(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                     placeholder="0"
                   />
                 </div>
@@ -689,7 +689,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               <h4 className="text-sm font-semibold text-gray-700 mt-4">
                 Eval Bonus
               </h4>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Eval Slots
@@ -699,7 +699,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     min="0"
                     value={pccEvalSlots}
                     onChange={(e) => setPccEvalSlots(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                     placeholder="0"
                   />
                 </div>
@@ -712,7 +712,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     min="0"
                     value={pccEvalsFilled}
                     onChange={(e) => setPccEvalsFilled(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                     placeholder="0"
                   />
                 </div>
@@ -725,7 +725,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                     min="0"
                     value={pccClinicCancellations}
                     onChange={(e) => setPccClinicCancellations(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                     placeholder="0"
                   />
                 </div>
@@ -733,7 +733,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               <p className="text-xs text-gray-500">
                 ${PCC_EVAL_BONUS_AMOUNT} bonus if evals filled &ge; eval slots minus clinic cancellations
               </p>
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-ipta-teal mt-1">
                 Patient Arrivals bonus calculated on dashboard (based on location-wide arrival rate)
               </p>
             </div>
@@ -755,7 +755,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   step="0.01"
                   value={sponsorshipAmount}
                   onChange={(e) => setSponsorshipAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                   placeholder="0.00"
                 />
               </div>
@@ -770,8 +770,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </div>
           )}
 
-          {/* Equine Staff fields (Dillen, Katie, Savannah — NOT Marley) */}
-          {isEquineStaff && !isPto && (
+          {/* Equine fields — all equine team members get walk bonus */}
+          {isEquine && !isPto && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
               <h4 className="text-sm font-semibold text-gray-700">
                 Productivity Bonus (Extra Walks)
@@ -785,7 +785,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   min="0"
                   value={equineExtraWalks}
                   onChange={(e) => setEquineExtraWalks(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                   placeholder="0"
                 />
               </div>
@@ -803,7 +803,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
               placeholder="Any notes for this week..."
             />
           </div>
@@ -811,7 +811,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full py-3 px-4 bg-ipta-teal text-white font-semibold rounded-lg hover:bg-ipta-teal-light focus:ring-4 focus:ring-ipta-teal-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {submitting
               ? "Submitting..."
@@ -882,17 +882,17 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                 </p>
               )}
               {isDirector && (
-                <p className="text-blue-700 text-sm mt-1">
+                <p className="text-ipta-teal text-sm mt-1">
                   Company productivity bonus calculated on your dashboard
                 </p>
               )}
               {isPCC && (
-                <p className="text-blue-700 text-sm mt-1">
+                <p className="text-ipta-teal text-sm mt-1">
                   Patient Arrivals bonus calculated on your dashboard
                 </p>
               )}
               {isEquineDirector && (
-                <p className="text-blue-700 text-sm mt-1">
+                <p className="text-ipta-teal text-sm mt-1">
                   Patient Arrivals bonus calculated on your dashboard
                 </p>
               )}
@@ -984,7 +984,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             {/* Bonus 3: Individual Productivity */}
             <div>
               <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">3</span>
+                <span className="w-5 h-5 rounded-full bg-ipta-teal-50 text-ipta-teal flex items-center justify-center text-xs font-bold">3</span>
                 Individual Productivity
               </h3>
               <p className="text-xs text-gray-500 mb-2">
@@ -1072,6 +1072,16 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             <div>
               <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">2</span>
+                Productivity (Extra Walks)
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">Per extra walk</span>
+                <span className="font-semibold text-gray-900">${EQUINE_WALK_RATE}</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">3</span>
                 Patient Arrivals
               </h3>
               <p className="text-xs text-gray-500">
@@ -1252,7 +1262,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                           <>
                             <button
                               onClick={() => loadSubmissionForEdit(row)}
-                              className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition"
+                              className="px-2.5 py-1 text-xs font-medium text-ipta-teal bg-ipta-teal-50 rounded hover:bg-ipta-teal-100 transition"
                             >
                               Edit
                             </button>

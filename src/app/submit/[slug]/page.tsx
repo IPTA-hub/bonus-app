@@ -18,11 +18,11 @@ export default async function SubmitPage({
   if (!therapist) notFound();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
       <div className="max-w-lg mx-auto mb-6">
         <Link
           href="/"
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="text-ipta-teal hover:text-ipta-teal-light text-sm font-medium"
         >
           &larr; Back to Staff Directory
         </Link>
@@ -34,7 +34,7 @@ export default async function SubmitPage({
       <div className="max-w-lg mx-auto mt-4 text-center">
         <Link
           href={`/dashboard/${slug}`}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="text-ipta-teal hover:text-ipta-teal-light text-sm font-medium"
         >
           View My Dashboard &rarr;
         </Link>

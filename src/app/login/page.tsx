@@ -35,11 +35,11 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Bonus Tracker
+          <h1 className="text-3xl font-bold text-ipta-maroon">
+            IPTA Dashboard
           </h1>
           <p className="text-gray-500 mt-1">Sign in to submit your weekly data</p>
         </div>
@@ -54,7 +54,7 @@ function LoginForm() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                 placeholder="e.g. kiana.atencio"
                 required
                 autoComplete="username"
@@ -69,7 +69,7 @@ function LoginForm() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                 placeholder="Enter your password"
                 required
                 autoComplete="current-password"
@@ -85,7 +85,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="w-full py-3 px-4 bg-ipta-teal text-white font-semibold rounded-lg hover:bg-ipta-teal-light focus:ring-4 focus:ring-ipta-teal-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
@@ -104,8 +104,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ipta-teal" />
         </div>
       }
     >

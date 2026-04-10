@@ -97,7 +97,7 @@ export default function MissingSubmissions() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-ipta-teal" />
       </div>
     );
   }
@@ -105,11 +105,11 @@ export default function MissingSubmissions() {
   return (
     <div className="space-y-6">
       {/* Week header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">
           Week of {new Date(currentMonday + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </h3>
-        <div className="flex gap-3 text-sm">
+        <div className="flex flex-wrap gap-3 text-sm">
           <span className="text-green-600 font-medium">{submitted.length} submitted</span>
           <span className="text-red-600 font-medium">{missing.length} missing</span>
         </div>
@@ -125,11 +125,11 @@ export default function MissingSubmissions() {
 
       {/* Send reminders button */}
       {missing.length > 0 && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <button
             onClick={sendReminders}
             disabled={sendingReminders}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="px-4 py-3 bg-ipta-teal text-white text-sm font-medium rounded-lg hover:bg-ipta-teal-light disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {sendingReminders ? "Sending..." : `Email ${missing.length} Missing Staff`}
           </button>
@@ -151,17 +151,17 @@ export default function MissingSubmissions() {
           </div>
           <div className="divide-y divide-red-100">
             {missing.map((s) => (
-              <div key={s.slug} className="px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div key={s.slug} className="px-4 py-2 flex flex-wrap items-center justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-gray-900 text-sm">{s.name}</span>
-                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">{s.role}</span>
+                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-ipta-teal-50 text-ipta-teal">{s.role}</span>
                   {s.isClinicalDirector && (
                     <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">CD</span>
                   )}
                 </div>
                 <Link
                   href={`/submit/${s.slug}`}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  className="text-sm text-ipta-teal hover:text-ipta-teal-light font-medium min-h-[44px] flex items-center"
                 >
                   Submit
                 </Link>
@@ -185,10 +185,10 @@ export default function MissingSubmissions() {
           </div>
           <div className="divide-y divide-green-100">
             {submitted.map((s) => (
-              <div key={s.slug} className="px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div key={s.slug} className="px-4 py-2 flex flex-wrap items-center justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm text-gray-700">{s.name}</span>
-                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">{s.role}</span>
+                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-ipta-teal-50 text-ipta-teal">{s.role}</span>
                 </div>
                 <span className="text-green-600 text-xs">&#10003;</span>
               </div>

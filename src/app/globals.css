@@ -8,21 +8,27 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-ipta-teal: #2D9F93;
+  --color-ipta-teal-light: #3DB8AC;
+  --color-ipta-teal-50: #E6F5F3;
+  --color-ipta-teal-100: #B3E3DD;
+  --color-ipta-maroon: #4A2832;
+  --color-ipta-green: #7BC67E;
+  --color-ipta-orange: #F5A623;
+  --color-ipta-blue: #4A90D9;
+  --color-ipta-pink: #E84C6A;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
 input,

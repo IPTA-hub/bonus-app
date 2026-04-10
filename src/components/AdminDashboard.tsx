@@ -312,68 +312,133 @@ function StaffView({ summaries }: { summaries: StaffSummary[] }) {
 
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <h3 className="text-lg font-semibold text-gray-900 p-6 pb-3">All Staff</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-left">
-                <th className="px-4 py-3 font-medium text-gray-500">Name</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Role</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Locations</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Utilization</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Arrival Rate</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Evals</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Total Bonus</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Weeks</th>
-                <th className="px-4 py-3 font-medium text-gray-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {summaries.map((s) => (
-                <tr key={s.slug} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    <Link href={`/dashboard/${s.slug}`} className="hover:text-blue-600">
-                      {s.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {s.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-600">
-                    {s.locations.length > 0 ? s.locations.join(", ") : "-"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {s.avgUtilization !== null ? (
-                      <span className="font-medium text-purple-600">{formatPct(s.avgUtilization)}</span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {s.avgRate !== null ? (
-                      <span className={`font-medium ${s.avgRate >= 0.9 ? "text-green-600" : s.avgRate >= 0.85 ? "text-amber-600" : "text-red-600"}`}>
-                        {formatPct(s.avgRate)}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{s.totalEvals > 0 ? s.totalEvals : "-"}</td>
-                  <td className="px-4 py-3 font-medium text-green-600">
-                    {(s.totalBonus + s.totalEvalBonus) > 0 ? `$${(s.totalBonus + s.totalEvalBonus).toFixed(2)}` : "-"}
-                  </td>
-                  <td className="px-4 py-3">{s.weeksWorked}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <Link href={`/submit/${s.slug}`} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Submit</Link>
-                      <Link href={`/dashboard/${s.slug}`} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Dashboard</Link>
-                    </div>
-                  </td>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left">
+                  <th className="px-4 py-3 font-medium text-gray-500">Name</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Role</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Locations</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Utilization</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Arrival Rate</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Evals</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Total Bonus</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Weeks</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {summaries.map((s) => (
+                  <tr key={s.slug} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      <Link href={`/dashboard/${s.slug}`} className="hover:text-ipta-teal">
+                        {s.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
+                        {s.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600">
+                      {s.locations.length > 0 ? s.locations.join(", ") : "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.avgUtilization !== null ? (
+                        <span className="font-medium text-purple-600">{formatPct(s.avgUtilization)}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {s.avgRate !== null ? (
+                        <span className={`font-medium ${s.avgRate >= 0.9 ? "text-green-600" : s.avgRate >= 0.85 ? "text-amber-600" : "text-red-600"}`}>
+                          {formatPct(s.avgRate)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">{s.totalEvals > 0 ? s.totalEvals : "-"}</td>
+                    <td className="px-4 py-3 font-medium text-green-600">
+                      {(s.totalBonus + s.totalEvalBonus) > 0 ? `$${(s.totalBonus + s.totalEvalBonus).toFixed(2)}` : "-"}
+                    </td>
+                    <td className="px-4 py-3">{s.weeksWorked}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <Link href={`/submit/${s.slug}`} className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium">Submit</Link>
+                        <Link href={`/dashboard/${s.slug}`} className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium">Dashboard</Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-3 p-4">
+          {summaries.map((s) => (
+            <div key={s.slug} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <Link href={`/dashboard/${s.slug}`} className="font-medium text-gray-900 hover:text-ipta-teal">
+                  {s.name}
+                </Link>
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
+                  {s.role}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <p className="text-xs text-gray-500">Utilization</p>
+                  <p className="font-medium text-purple-600">{s.avgUtilization !== null ? formatPct(s.avgUtilization) : "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Arrival Rate</p>
+                  <p className={`font-medium ${s.avgRate !== null ? (s.avgRate >= 0.9 ? "text-green-600" : s.avgRate >= 0.85 ? "text-amber-600" : "text-red-600") : "text-gray-400"}`}>
+                    {s.avgRate !== null ? formatPct(s.avgRate) : "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Total Bonus</p>
+                  <p className="font-medium text-green-600">
+                    {(s.totalBonus + s.totalEvalBonus) > 0 ? `$${(s.totalBonus + s.totalEvalBonus).toFixed(2)}` : "-"}
+                  </p>
+                </div>
+                {s.totalEvals > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500">Evals</p>
+                    <p className="font-medium text-gray-900">{s.totalEvals}</p>
+                  </div>
+                )}
+              </div>
+              {s.locations.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {s.locations.map((loc) => (
+                    <span key={loc} className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                      {loc}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Link
+                  href={`/submit/${s.slug}`}
+                  className="flex-1 text-center min-h-[44px] flex items-center justify-center rounded-lg bg-ipta-teal text-white text-sm font-medium hover:bg-ipta-teal-light"
+                >
+                  Submit
+                </Link>
+                <Link
+                  href={`/dashboard/${s.slug}`}
+                  className="flex-1 text-center min-h-[44px] flex items-center justify-center rounded-lg border border-ipta-teal text-ipta-teal text-sm font-medium hover:bg-ipta-teal-50"
+                >
+                  Dashboard
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -402,7 +467,7 @@ function DisciplineView({ summaries }: { summaries: DisciplineSummary[] }) {
           <div key={d.role} className="bg-white rounded-xl shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">{d.role}</h3>
-              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              <span className="px-3 py-1 rounded-full text-sm font-medium bg-ipta-teal-50 text-ipta-teal">
                 {d.count} staff
               </span>
             </div>
@@ -586,7 +651,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ipta-teal" />
       </div>
     );
   }
@@ -632,7 +697,7 @@ export default function AdminDashboard() {
           <p className="text-sm text-gray-500">Patients Seen</p>
           <p className="text-3xl font-bold text-gray-900">{clinicSeen.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-xl p-5 shadow text-center">
+        <div className="bg-white rounded-xl p-5 shadow text-center col-span-2 md:col-span-1">
           <p className="text-sm text-gray-500">Active Staff</p>
           <p className="text-3xl font-bold text-gray-900">{THERAPISTS.length}</p>
         </div>
@@ -640,14 +705,14 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-1">
+        <nav className="flex gap-1 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-medium rounded-t-lg transition ${
+              className={`whitespace-nowrap flex-shrink-0 px-5 py-3 text-sm font-medium rounded-t-lg transition ${
                 activeTab === tab.key
-                  ? "bg-white text-blue-600 border border-b-0 border-gray-200 -mb-px"
+                  ? "bg-white text-ipta-teal border border-b-0 border-gray-200 -mb-px"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
             >
