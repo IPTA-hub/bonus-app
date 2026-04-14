@@ -115,6 +115,11 @@ export const THERAPISTS: Therapist[] = [
     workLocations: ["Windsor"],
   }),
 
+  // --- PCC Assistants ---
+  makeTherapist("Perla Gomez", "PCC-Asst", 40, 0, {
+    workLocations: ["Greeley"],
+  }),
+
   // --- Equine Team ---
   makeTherapist("Marley Higgins", "Equine", 40, 0, {
     directorLocation: "Farm",
@@ -143,7 +148,7 @@ export function getClinicalDirectors(): Therapist[] {
 }
 
 export function getRegularTherapists(): Therapist[] {
-  return THERAPISTS.filter((t) => !t.isClinicalDirector && t.role !== "Director" && t.role !== "PCC" && t.role !== "Equine");
+  return THERAPISTS.filter((t) => !t.isClinicalDirector && t.role !== "Director" && t.role !== "PCC" && t.role !== "PCC-Asst" && t.role !== "Equine");
 }
 
 export function getPCCStaff(): Therapist[] {

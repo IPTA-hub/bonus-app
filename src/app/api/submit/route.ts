@@ -130,6 +130,22 @@ export async function POST(request: NextRequest) {
       bonusAmount = pccRescheduleBonus + pccEvalBonus;
     }
 
+    // PCC Assistant — reschedule bonus only (no eval or patient arrivals)
+    if (therapist.role === "PCC-Asst" && !pto && roleBonusInput) {
+      const rbd = roleBonusInput;
+      const reschedulesSeen = parseInt(String(rbd.reschedules_seen)) || 0;
+      const flexSeen = parseInt(String(rbd.flex_seen)) || 0;
+
+      pccRescheduleBonus = calculatePCCRescheduleBonus(reschedulesSeen, flexSeen);
+
+      roleBonusDataStr = JSON.stringify({
+        reschedules_seen: reschedulesSeen,
+        flex_seen: flexSeen,
+        reschedule_bonus: pccRescheduleBonus,
+      });
+      bonusAmount = pccRescheduleBonus;
+    }
+
     // All Equine team members get walk bonus (including Marley)
     if (therapist.role === "Equine" && !pto && roleBonusInput) {
       const rbd = roleBonusInput;

@@ -128,6 +128,13 @@ export interface PCCBonusData {
   eval_bonus: number;
 }
 
+// PCC Assistant role_bonus_data shape (reschedule bonus only)
+export interface PCCAssistantBonusData {
+  reschedules_seen: number;
+  flex_seen: number;
+  reschedule_bonus: number;
+}
+
 // Equine role_bonus_data shape
 export interface EquineBonusData {
   extra_walks: number;

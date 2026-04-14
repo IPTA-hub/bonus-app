@@ -11,7 +11,7 @@ import {
   YearlySummary,
 } from "./Charts";
 import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, calculatePatientArrivalBonus, PCC_RESCHEDULE_RATE, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_SLUG, getRetentionBonus, MARKETING_SLUG, MARKETING_OT_REFERRAL_BONUS, MARKETING_ST_REFERRAL_BONUS, MARKETING_NEW_DOCTOR_BONUS, MARKETING_NEW_DAYCARE_BONUS, MARKETING_DROPIN_VISIT_BONUS, MARKETING_PHYSICIAN_MEETING_BONUS, MARKETING_NON_PHYSICIAN_MEETING_BONUS, MARKETING_PHYSICIAN_TOUR_BONUS, MARKETING_SPONSORSHIP_RATE } from "@/lib/bonus";
-import type { PCCBonusData, EquineBonusData, SponsorshipBonusData, MarketingBonusData } from "@/lib/db";
+import type { PCCBonusData, PCCAssistantBonusData, EquineBonusData, SponsorshipBonusData, MarketingBonusData } from "@/lib/db";
 import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
 
 export default function TherapistDashboard({
@@ -31,6 +31,7 @@ export default function TherapistDashboard({
   const canModify = userRole === "admin" || userRole === "therapist" || userRole === "director";
   const isDirector = therapist.role === "Director";
   const isPCC = therapist.role === "PCC";
+  const isPCCAssistant = therapist.role === "PCC-Asst";
   const isEquine = therapist.role === "Equine";
   const isEquineDirector = isEquine && !!therapist.directorLocation;
   const isEquineStaff = isEquine && !therapist.directorLocation;
@@ -266,6 +267,40 @@ export default function TherapistDashboard({
                 ).toFixed(0)}
               </p>
               <p className="text-xs text-gray-500 mt-1">All 3 bonuses combined</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PCC Assistant Bonus Summary */}
+      {isPCCAssistant && data.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">PCC Assistant Bonus Breakdown</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-teal-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-teal-600 font-medium uppercase">Reschedules</p>
+              <p className="text-xl font-bold text-teal-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: PCCAssistantBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.reschedule_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-teal-500 mt-1">
+                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: PCCAssistantBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.reschedules_seen || 0) + (rbd.flex_seen || 0);
+                  } catch { return a; }
+                }, 0)} total @ ${PCC_RESCHEDULE_RATE}/each
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
+              <p className="text-xl font-bold text-green-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => Number(s.bonus_amount) || 0, 0).toFixed(0)}
+              </p>
             </div>
           </div>
         </div>
@@ -557,7 +592,7 @@ export default function TherapistDashboard({
                     {/* Key metrics grid */}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       {/* Standard therapist metrics */}
-                      {!isPCC && !isEquine && !isMarketing &&(
+                      {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                         <>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Available</p>
@@ -628,6 +663,24 @@ export default function TherapistDashboard({
                                 ? `${(pccLocArr.rate * 100).toFixed(1)}%`
                                 : "-"}
                             </p>
+                          </div>
+                        </>
+                      )}
+
+                      {/* PCC Assistant metrics */}
+                      {isPCCAssistant && (
+                        <>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Resched</p>
+                            <p className="font-medium">{row.is_pto ? "-" : (() => {
+                              try { const rbd = row.role_bonus_data ? JSON.parse(row.role_bonus_data) : {}; return rbd.reschedules_seen || 0; } catch { return 0; }
+                            })()}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Flex</p>
+                            <p className="font-medium">{row.is_pto ? "-" : (() => {
+                              try { const rbd = row.role_bonus_data ? JSON.parse(row.role_bonus_data) : {}; return rbd.flex_seen || 0; } catch { return 0; }
+                            })()}</p>
                           </div>
                         </>
                       )}
@@ -782,13 +835,13 @@ export default function TherapistDashboard({
               <thead>
                 <tr className="bg-gray-50 text-left">
                   <th className="px-6 py-3 font-medium text-gray-500">Week</th>
-                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Available</th>}
-                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>}
-                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Utilization</th>}
-                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Seen</th>}
-                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>}
-                  {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Resched</th>}
-                  {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Flex</th>}
+                  {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Available</th>}
+                  {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>}
+                  {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Utilization</th>}
+                  {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Seen</th>}
+                  {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>}
+                  {(isPCC || isPCCAssistant) && <th className="px-6 py-3 font-medium text-gray-500">Resched</th>}
+                  {(isPCC || isPCCAssistant) && <th className="px-6 py-3 font-medium text-gray-500">Flex</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Eval</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Loc. Rate</th>}
                   {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Walks</th>}
@@ -834,12 +887,12 @@ export default function TherapistDashboard({
                             year: "numeric",
                           })}
                         </td>
-                        {!isPCC && !isEquine && !isMarketing &&(
+                        {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.is_pto ? "-" : (row.available || "-")}
                           </td>
                         )}
-                        {!isPCC && !isEquine && !isMarketing &&(
+                        {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.is_pto ? (
                               <span className="text-amber-600 font-medium">PTO</span>
@@ -848,7 +901,7 @@ export default function TherapistDashboard({
                             )}
                           </td>
                         )}
-                        {!isPCC && !isEquine && !isMarketing &&(
+                        {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.utilization_rate !== null && row.utilization_rate !== undefined ? (
                               <span className="font-medium text-purple-600">
@@ -859,10 +912,10 @@ export default function TherapistDashboard({
                             )}
                           </td>
                         )}
-                        {!isPCC && !isEquine && !isMarketing &&(
+                        {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">{row.is_pto ? "-" : row.seen}</td>
                         )}
-                        {!isPCC && !isEquine && !isMarketing &&(
+                        {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.arrival_rate !== null ? (
                               <span
@@ -906,6 +959,17 @@ export default function TherapistDashboard({
                                   </span>
                                 ) : "-"}
                               </td>
+                            </>
+                          );
+                        })()}
+                        {/* PCC Assistant columns (reschedule only) */}
+                        {isPCCAssistant && (() => {
+                          let rbd: PCCAssistantBonusData = { reschedules_seen: 0, flex_seen: 0, reschedule_bonus: 0 };
+                          try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                          return (
+                            <>
+                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.reschedules_seen}</td>
+                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.flex_seen}</td>
                             </>
                           );
                         })()}

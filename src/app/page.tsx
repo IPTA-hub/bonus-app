@@ -7,7 +7,7 @@ export default function Home() {
     COTA: THERAPISTS.filter((t) => t.role === "COTA" && !t.isClinicalDirector),
     SLP: THERAPISTS.filter((t) => t.role === "SLP" && !t.isClinicalDirector),
     Director: THERAPISTS.filter((t) => t.role === "Director" || t.role === "Marketing" || t.isClinicalDirector),
-    "Patient Care Coordinator": THERAPISTS.filter((t) => t.role === "PCC"),
+    "Patient Care Coordinator": THERAPISTS.filter((t) => t.role === "PCC" || t.role === "PCC-Asst"),
     "Equine Team": THERAPISTS.filter((t) => t.role === "Equine"),
   };
 
