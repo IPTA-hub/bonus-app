@@ -458,3 +458,74 @@ export const SPONSORSHIP_SLUG = "carolee-jaynes";
 export function calculateSponsorshipBonus(sponsorshipAmount: number): number {
   return Math.round(sponsorshipAmount * SPONSORSHIP_RATE * 100) / 100;
 }
+
+// ============================================================
+// LEXIE McCONNAUGHEY — MARKETING DIRECTOR BONUS STRUCTURE
+// ============================================================
+export const MARKETING_SLUG = "lexie-mcconnaughey";
+
+// --- Bonus 1: Referrals (monthly) ---
+// OT referrals >= 50% of openings = $100
+// ST referrals >= 50% of openings = $100
+// New doctor/practice first referral = $50 each
+// New daycare/preschool for screenings = $100 each
+// Annual target: 300 OT referrals = $1000, 100 ST referrals = $1000
+export const MARKETING_REFERRAL_THRESHOLD = 0.5; // 50%
+export const MARKETING_OT_REFERRAL_BONUS = 100;
+export const MARKETING_ST_REFERRAL_BONUS = 100;
+export const MARKETING_NEW_DOCTOR_BONUS = 50;
+export const MARKETING_NEW_DAYCARE_BONUS = 100;
+export const MARKETING_ANNUAL_OT_TARGET = 300;
+export const MARKETING_ANNUAL_ST_TARGET = 100;
+export const MARKETING_ANNUAL_TARGET_BONUS = 1000;
+
+export function calculateMarketingReferralBonus(
+  otReferrals: number,
+  otOpenings: number,
+  stReferrals: number,
+  stOpenings: number,
+  newDoctorReferrals: number,
+  newDaycareScreenings: number
+): number {
+  let bonus = 0;
+  // OT referrals threshold
+  if (otOpenings > 0 && otReferrals / otOpenings >= MARKETING_REFERRAL_THRESHOLD) {
+    bonus += MARKETING_OT_REFERRAL_BONUS;
+  }
+  // ST referrals threshold
+  if (stOpenings > 0 && stReferrals / stOpenings >= MARKETING_REFERRAL_THRESHOLD) {
+    bonus += MARKETING_ST_REFERRAL_BONUS;
+  }
+  // New doctor referrals
+  bonus += newDoctorReferrals * MARKETING_NEW_DOCTOR_BONUS;
+  // New daycare/preschool
+  bonus += newDaycareScreenings * MARKETING_NEW_DAYCARE_BONUS;
+  return bonus;
+}
+
+// --- Bonus 2: Meetings ---
+export const MARKETING_DROPIN_VISIT_BONUS = 20;
+export const MARKETING_PHYSICIAN_MEETING_BONUS = 50;
+export const MARKETING_NON_PHYSICIAN_MEETING_BONUS = 20;
+export const MARKETING_PHYSICIAN_TOUR_BONUS = 100;
+
+export function calculateMarketingMeetingBonus(
+  dropinVisits: number,
+  physicianMeetings: number,
+  nonPhysicianMeetings: number,
+  physicianTours: number
+): number {
+  return (
+    dropinVisits * MARKETING_DROPIN_VISIT_BONUS +
+    physicianMeetings * MARKETING_PHYSICIAN_MEETING_BONUS +
+    nonPhysicianMeetings * MARKETING_NON_PHYSICIAN_MEETING_BONUS +
+    physicianTours * MARKETING_PHYSICIAN_TOUR_BONUS
+  );
+}
+
+// --- Bonus 3: Sponsorships (same 5% rate as Carolee) ---
+export const MARKETING_SPONSORSHIP_RATE = 0.05;
+
+export function calculateMarketingSponsorshipBonus(sponsorshipAmount: number): number {
+  return Math.round(sponsorshipAmount * MARKETING_SPONSORSHIP_RATE * 100) / 100;
+}

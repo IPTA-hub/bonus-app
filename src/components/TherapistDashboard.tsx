@@ -10,8 +10,8 @@ import {
   MonthlyBonusChart,
   YearlySummary,
 } from "./Charts";
-import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, calculatePatientArrivalBonus, PCC_RESCHEDULE_RATE, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_SLUG, getRetentionBonus } from "@/lib/bonus";
-import type { PCCBonusData, EquineBonusData, SponsorshipBonusData } from "@/lib/db";
+import { calculateCompanyProductivityBonus, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, calculatePatientArrivalBonus, PCC_RESCHEDULE_RATE, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_SLUG, getRetentionBonus, MARKETING_SLUG, MARKETING_OT_REFERRAL_BONUS, MARKETING_ST_REFERRAL_BONUS, MARKETING_NEW_DOCTOR_BONUS, MARKETING_NEW_DAYCARE_BONUS, MARKETING_DROPIN_VISIT_BONUS, MARKETING_PHYSICIAN_MEETING_BONUS, MARKETING_NON_PHYSICIAN_MEETING_BONUS, MARKETING_PHYSICIAN_TOUR_BONUS, MARKETING_SPONSORSHIP_RATE } from "@/lib/bonus";
+import type { PCCBonusData, EquineBonusData, SponsorshipBonusData, MarketingBonusData } from "@/lib/db";
 import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
 
 export default function TherapistDashboard({
@@ -34,6 +34,7 @@ export default function TherapistDashboard({
   const isEquine = therapist.role === "Equine";
   const isEquineDirector = isEquine && !!therapist.directorLocation;
   const isEquineStaff = isEquine && !therapist.directorLocation;
+  const isMarketing = therapist.role === "Marketing";
   const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
   const needsAllData = isDirector || isPCC || isEquineDirector;
 
@@ -391,6 +392,50 @@ export default function TherapistDashboard({
         </div>
       )}
 
+      {/* Marketing Director Bonus Summary (Lexie McConnaughey) */}
+      {isMarketing && data.length > 0 && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Director Bonus Breakdown</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="bg-emerald-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-emerald-600 font-medium uppercase">Referrals</p>
+              <p className="text-xl font-bold text-emerald-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: MarketingBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.referral_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-emerald-500 mt-1">Monthly payout</p>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-purple-600 font-medium uppercase">Meetings</p>
+              <p className="text-xl font-bold text-purple-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: MarketingBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.meeting_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-amber-600 font-medium uppercase">Sponsorships</p>
+              <p className="text-xl font-bold text-amber-700">
+                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  try {
+                    const rbd: MarketingBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
+                    return a + (rbd.sponsorship_bonus || 0);
+                  } catch { return a; }
+                }, 0).toFixed(0)}
+              </p>
+              <p className="text-xs text-amber-500 mt-1">5% of sponsorships</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -477,6 +522,12 @@ export default function TherapistDashboard({
                 }
                 const farmArr = isEquineDirector && !row.is_pto ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
 
+                // Marketing bonus data
+                let marketingData: MarketingBonusData = { ot_referrals: 0, ot_openings: 0, st_referrals: 0, st_openings: 0, new_doctor_referrals: 0, new_daycare_screenings: 0, referral_bonus: 0, dropin_physician_visits: 0, physician_meetings: 0, non_physician_meetings: 0, physician_tours: 0, meeting_bonus: 0, sponsorship_amount: 0, sponsorship_recurring: false, sponsorship_bonus: 0 };
+                if (isMarketing && row.role_bonus_data) {
+                  try { marketingData = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                }
+
                 // Sponsorship data
                 let sponsorData: SponsorshipBonusData = { sponsorship_amount: 0, sponsorship_bonus: 0 };
                 if (hasSponsorshipBonus && row.role_bonus_data) {
@@ -506,7 +557,7 @@ export default function TherapistDashboard({
                     {/* Key metrics grid */}
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       {/* Standard therapist metrics */}
-                      {!isPCC && !isEquine && (
+                      {!isPCC && !isEquine && !isMarketing &&(
                         <>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Available</p>
@@ -606,6 +657,42 @@ export default function TherapistDashboard({
                           )}
                         </>
                       )}
+
+                      {/* Marketing metrics */}
+                      {isMarketing && (
+                        <>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Referrals</p>
+                            <p className="font-medium">
+                              {row.is_pto ? "-" : (
+                                marketingData.referral_bonus > 0
+                                  ? <span className="text-emerald-600">${marketingData.referral_bonus}</span>
+                                  : <span className="text-gray-400">$0</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Meetings</p>
+                            <p className="font-medium">
+                              {row.is_pto ? "-" : (
+                                marketingData.meeting_bonus > 0
+                                  ? <span className="text-purple-600">${marketingData.meeting_bonus}</span>
+                                  : <span className="text-gray-400">$0</span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-xs text-gray-500">Sponsorship</p>
+                            <p className="font-medium">
+                              {row.is_pto ? "-" : (
+                                marketingData.sponsorship_bonus > 0
+                                  ? <span className="text-amber-600">${marketingData.sponsorship_bonus.toFixed(2)}</span>
+                                  : <span className="text-gray-400">$0</span>
+                              )}
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Additional role-specific fields */}
@@ -695,17 +782,20 @@ export default function TherapistDashboard({
               <thead>
                 <tr className="bg-gray-50 text-left">
                   <th className="px-6 py-3 font-medium text-gray-500">Week</th>
-                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Available</th>}
-                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>}
-                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Utilization</th>}
-                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Seen</th>}
-                  {!isPCC && !isEquine && <th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>}
+                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Available</th>}
+                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Scheduled</th>}
+                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Utilization</th>}
+                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Seen</th>}
+                  {!isPCC && !isEquine && !isMarketing &&<th className="px-6 py-3 font-medium text-gray-500">Arrival Rate</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Resched</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Flex</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Eval</th>}
                   {isPCC && <th className="px-6 py-3 font-medium text-gray-500">Loc. Rate</th>}
                   {isEquine && <th className="px-6 py-3 font-medium text-gray-500">Walks</th>}
                   {isEquineDirector && <th className="px-6 py-3 font-medium text-gray-500">Farm Rate</th>}
+                  {isMarketing && <th className="px-6 py-3 font-medium text-gray-500">Referrals</th>}
+                  {isMarketing && <th className="px-6 py-3 font-medium text-gray-500">Meetings</th>}
+                  {isMarketing && <th className="px-6 py-3 font-medium text-gray-500">Sponsorship</th>}
                   {hasSponsorshipBonus && <th className="px-6 py-3 font-medium text-gray-500">Sponsorship</th>}
                   {(therapist.role === "OTR" || therapist.role === "SLP") && (
                     <th className="px-6 py-3 font-medium text-gray-500">Evals</th>
@@ -744,12 +834,12 @@ export default function TherapistDashboard({
                             year: "numeric",
                           })}
                         </td>
-                        {!isPCC && !isEquine && (
+                        {!isPCC && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.is_pto ? "-" : (row.available || "-")}
                           </td>
                         )}
-                        {!isPCC && !isEquine && (
+                        {!isPCC && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.is_pto ? (
                               <span className="text-amber-600 font-medium">PTO</span>
@@ -758,7 +848,7 @@ export default function TherapistDashboard({
                             )}
                           </td>
                         )}
-                        {!isPCC && !isEquine && (
+                        {!isPCC && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.utilization_rate !== null && row.utilization_rate !== undefined ? (
                               <span className="font-medium text-purple-600">
@@ -769,10 +859,10 @@ export default function TherapistDashboard({
                             )}
                           </td>
                         )}
-                        {!isPCC && !isEquine && (
+                        {!isPCC && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">{row.is_pto ? "-" : row.seen}</td>
                         )}
-                        {!isPCC && !isEquine && (
+                        {!isPCC && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
                             {row.arrival_rate !== null ? (
                               <span
@@ -845,6 +935,36 @@ export default function TherapistDashboard({
                                 </span>
                               ) : "-"}
                             </td>
+                          );
+                        })()}
+                        {/* Marketing Director columns (Lexie McConnaughey) */}
+                        {isMarketing && (() => {
+                          let rbd: MarketingBonusData = { ot_referrals: 0, ot_openings: 0, st_referrals: 0, st_openings: 0, new_doctor_referrals: 0, new_daycare_screenings: 0, referral_bonus: 0, dropin_physician_visits: 0, physician_meetings: 0, non_physician_meetings: 0, physician_tours: 0, meeting_bonus: 0, sponsorship_amount: 0, sponsorship_recurring: false, sponsorship_bonus: 0 };
+                          try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                          return (
+                            <>
+                              <td className="px-6 py-3">
+                                {row.is_pto ? "-" : (
+                                  rbd.referral_bonus > 0
+                                    ? <span className="text-emerald-600 font-medium">${rbd.referral_bonus}</span>
+                                    : <span className="text-gray-400">$0</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-3">
+                                {row.is_pto ? "-" : (
+                                  rbd.meeting_bonus > 0
+                                    ? <span className="text-purple-600 font-medium">${rbd.meeting_bonus}</span>
+                                    : <span className="text-gray-400">$0</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-3">
+                                {row.is_pto ? "-" : (
+                                  rbd.sponsorship_bonus > 0
+                                    ? <span className="text-amber-600 font-medium">${rbd.sponsorship_bonus.toFixed(2)}</span>
+                                    : <span className="text-gray-400">$0</span>
+                                )}
+                              </td>
+                            </>
                           );
                         })()}
                         {/* Sponsorship column (Carolee Jaynes) */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Therapist } from "@/lib/therapists";
-import type { Submission } from "@/lib/db";
+import type { Submission, MarketingBonusData } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
 import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG, isEligibleForBiannualBonus, getNextBiannualDate, RETENTION_TIERS, getRetentionBonus } from "@/lib/bonus";
 import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
@@ -48,14 +48,28 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [equineExtraWalks, setEquineExtraWalks] = useState("");
   // Sponsorship fields (Carolee Jaynes)
   const [sponsorshipAmount, setSponsorshipAmount] = useState("");
+  // Marketing fields (Lexie McConnaughey)
+  const [mktOtReferrals, setMktOtReferrals] = useState("");
+  const [mktOtOpenings, setMktOtOpenings] = useState("");
+  const [mktStReferrals, setMktStReferrals] = useState("");
+  const [mktStOpenings, setMktStOpenings] = useState("");
+  const [mktNewDoctorReferrals, setMktNewDoctorReferrals] = useState("");
+  const [mktNewDaycareScreenings, setMktNewDaycareScreenings] = useState("");
+  const [mktDropinVisits, setMktDropinVisits] = useState("");
+  const [mktPhysicianMeetings, setMktPhysicianMeetings] = useState("");
+  const [mktNonPhysicianMeetings, setMktNonPhysicianMeetings] = useState("");
+  const [mktPhysicianTours, setMktPhysicianTours] = useState("");
+  const [mktSponsorshipAmount, setMktSponsorshipAmount] = useState("");
+  const [mktSponsorshipRecurring, setMktSponsorshipRecurring] = useState(false);
 
   const isDirector = therapist.role === "Director";
   const isPCC = therapist.role === "PCC";
   const isEquine = therapist.role === "Equine";
   const isEquineDirector = isEquine && !!therapist.directorLocation;
   const isEquineStaff = isEquine && !therapist.directorLocation;
+  const isMarketing = therapist.role === "Marketing";
   const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
-  const hidePatientTracking = isPCC || isEquine;
+  const hidePatientTracking = isPCC || isEquine || isMarketing;
 
   const [result, setResult] = useState<{
     success: boolean;
@@ -194,6 +208,20 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         if (hasSponsorshipBonus) {
           setSponsorshipAmount(String(rbd.sponsorship_amount || ""));
         }
+        if (isMarketing) {
+          setMktOtReferrals(String(rbd.ot_referrals || ""));
+          setMktOtOpenings(String(rbd.ot_openings || ""));
+          setMktStReferrals(String(rbd.st_referrals || ""));
+          setMktStOpenings(String(rbd.st_openings || ""));
+          setMktNewDoctorReferrals(String(rbd.new_doctor_referrals || ""));
+          setMktNewDaycareScreenings(String(rbd.new_daycare_screenings || ""));
+          setMktDropinVisits(String(rbd.dropin_physician_visits || ""));
+          setMktPhysicianMeetings(String(rbd.physician_meetings || ""));
+          setMktNonPhysicianMeetings(String(rbd.non_physician_meetings || ""));
+          setMktPhysicianTours(String(rbd.physician_tours || ""));
+          setMktSponsorshipAmount(String(rbd.sponsorship_amount || ""));
+          setMktSponsorshipRecurring(!!rbd.sponsorship_recurring);
+        }
       } catch {
         // Old data without role_bonus_data
       }
@@ -222,6 +250,18 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setPccClinicCancellations("");
     setEquineExtraWalks("");
     setSponsorshipAmount("");
+    setMktOtReferrals("");
+    setMktOtOpenings("");
+    setMktStReferrals("");
+    setMktStOpenings("");
+    setMktNewDoctorReferrals("");
+    setMktNewDaycareScreenings("");
+    setMktDropinVisits("");
+    setMktPhysicianMeetings("");
+    setMktNonPhysicianMeetings("");
+    setMktPhysicianTours("");
+    setMktSponsorshipAmount("");
+    setMktSponsorshipRecurring(false);
     setNotes("");
     setResult(null);
     setError("");
@@ -283,6 +323,21 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             }
           : isEquine
           ? { extra_walks: parseInt(equineExtraWalks) || 0 }
+          : isMarketing
+          ? {
+              ot_referrals: parseInt(mktOtReferrals) || 0,
+              ot_openings: parseInt(mktOtOpenings) || 0,
+              st_referrals: parseInt(mktStReferrals) || 0,
+              st_openings: parseInt(mktStOpenings) || 0,
+              new_doctor_referrals: parseInt(mktNewDoctorReferrals) || 0,
+              new_daycare_screenings: parseInt(mktNewDaycareScreenings) || 0,
+              dropin_physician_visits: parseInt(mktDropinVisits) || 0,
+              physician_meetings: parseInt(mktPhysicianMeetings) || 0,
+              non_physician_meetings: parseInt(mktNonPhysicianMeetings) || 0,
+              physician_tours: parseInt(mktPhysicianTours) || 0,
+              sponsorship_amount: parseFloat(mktSponsorshipAmount) || 0,
+              sponsorship_recurring: mktSponsorshipRecurring,
+            }
           : hasSponsorshipBonus
           ? { sponsorship_amount: parseFloat(sponsorshipAmount) || 0 }
           : undefined,
@@ -795,6 +850,100 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </div>
           )}
 
+          {/* Marketing fields (Lexie McConnaughey) */}
+          {isMarketing && !isPto && (
+            <div className="space-y-6">
+              {/* Bonus 1: Referrals */}
+              <div className="bg-emerald-50 rounded-lg p-4">
+                <h4 className="font-semibold text-emerald-800 mb-3">Bonus 1: Referrals <span className="text-xs font-normal text-emerald-600">Monthly payout</span></h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">OT Referrals</label>
+                    <input type="number" min="0" value={mktOtReferrals} onChange={(e) => setMktOtReferrals(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">OT Available Openings</label>
+                    <input type="number" min="0" value={mktOtOpenings} onChange={(e) => setMktOtOpenings(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ST Referrals</label>
+                    <input type="number" min="0" value={mktStReferrals} onChange={(e) => setMktStReferrals(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ST Available Openings</label>
+                    <input type="number" min="0" value={mktStOpenings} onChange={(e) => setMktStOpenings(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New Doctor/Practice Referrals</label>
+                    <input type="number" min="0" value={mktNewDoctorReferrals} onChange={(e) => setMktNewDoctorReferrals(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                    <p className="text-xs text-gray-500 mt-1">$50 per first-time referral</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New Daycare/Preschool</label>
+                    <input type="number" min="0" value={mktNewDaycareScreenings} onChange={(e) => setMktNewDaycareScreenings(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                    <p className="text-xs text-gray-500 mt-1">$100 per new screening location</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bonus 2: Meetings */}
+              <div className="bg-purple-50 rounded-lg p-4">
+                <h4 className="font-semibold text-purple-800 mb-3">Bonus 2: Meetings</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Drop-in Physician Visits</label>
+                    <input type="number" min="0" value={mktDropinVisits} onChange={(e) => setMktDropinVisits(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                    <p className="text-xs text-gray-500 mt-1">$20/visit</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Physician Sit-Down/Lunch & Learn</label>
+                    <input type="number" min="0" value={mktPhysicianMeetings} onChange={(e) => setMktPhysicianMeetings(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                    <p className="text-xs text-gray-500 mt-1">$50/meeting</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Non-Physician Meetings</label>
+                    <input type="number" min="0" value={mktNonPhysicianMeetings} onChange={(e) => setMktNonPhysicianMeetings(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                    <p className="text-xs text-gray-500 mt-1">$20/meeting</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Physician Tours at Location</label>
+                    <input type="number" min="0" value={mktPhysicianTours} onChange={(e) => setMktPhysicianTours(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0" />
+                    <p className="text-xs text-gray-500 mt-1">$100/tour</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bonus 3: Sponsorships */}
+              <div className="bg-amber-50 rounded-lg p-4">
+                <h4 className="font-semibold text-amber-800 mb-3">Bonus 3: Sponsorships <span className="text-xs font-normal text-amber-600">5% of amount</span></h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sponsorship Amount ($)</label>
+                    <input type="number" min="0" step="0.01" value={mktSponsorshipAmount} onChange={(e) => setMktSponsorshipAmount(e.target.value)}
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal" placeholder="0.00" />
+                  </div>
+                  <div className="flex items-center min-h-[44px]">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={mktSponsorshipRecurring} onChange={(e) => setMktSponsorshipRecurring(e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-ipta-teal focus:ring-ipta-teal" />
+                      <span className="text-sm text-gray-700">Recurring (monthly/annually)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Notes (optional)
@@ -1089,6 +1238,60 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               </p>
             </div>
           </div>
+        ) : isMarketing ? (
+          /* ---- Marketing Director (Lexie McConnaughey) ---- */
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">1</span>
+                Referral Bonus
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">New doctor/practice referral</span>
+                  <span className="font-semibold text-gray-900">$50</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">New daycare/preschool screening</span>
+                  <span className="font-semibold text-gray-900">$100</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">2</span>
+                Meeting Bonus
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">Drop-in physician visit</span>
+                  <span className="font-semibold text-gray-900">$20</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">Physician sit-down / L&L</span>
+                  <span className="font-semibold text-gray-900">$50</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">Non-physician meeting</span>
+                  <span className="font-semibold text-gray-900">$20</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                  <span className="text-xs text-gray-600">Physician tour at location</span>
+                  <span className="font-semibold text-gray-900">$100</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">3</span>
+                Sponsorship Bonus
+              </h3>
+              <div className="flex justify-between items-center px-3 py-2 bg-white rounded-lg">
+                <span className="text-sm text-gray-600">New sponsorship</span>
+                <span className="font-semibold text-gray-900">5% of amount</span>
+              </div>
+            </div>
+          </div>
         ) : isEquineStaff ? (
           /* ---- Equine Staff (Dillen, Katie, Savannah) ---- */
           <div className="space-y-4">
@@ -1229,12 +1432,32 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                             </>
                           )}
                         </div>
-                        {!row.is_pto && (
+                        {!row.is_pto && !isMarketing && (
                           <p className="text-xs text-gray-500 mt-0.5">
                             Avail: {row.available} | Sched: {row.scheduled} | Seen: {row.seen}
                             {row.locations && ` | ${row.locations}`}
                           </p>
                         )}
+                        {!row.is_pto && isMarketing && (() => {
+                          let rbd: Record<string, number | boolean> = {};
+                          try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
+                          return (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {typeof rbd.referral_bonus === "number" && rbd.referral_bonus > 0
+                                ? <span className="text-emerald-600 font-medium mr-2">Referrals: ${rbd.referral_bonus}</span>
+                                : null}
+                              {typeof rbd.meeting_bonus === "number" && rbd.meeting_bonus > 0
+                                ? <span className="text-purple-600 font-medium mr-2">Meetings: ${rbd.meeting_bonus}</span>
+                                : null}
+                              {typeof rbd.sponsorship_bonus === "number" && rbd.sponsorship_bonus > 0
+                                ? <span className="text-amber-600 font-medium mr-2">Sponsorship: ${Number(rbd.sponsorship_bonus).toFixed(2)}</span>
+                                : null}
+                              {(!rbd.referral_bonus && !rbd.meeting_bonus && !rbd.sponsorship_bonus)
+                                ? <span>No bonus data</span>
+                                : null}
+                            </p>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-2">
                         {isDeleting ? (

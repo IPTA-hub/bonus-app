@@ -94,7 +94,11 @@ export const THERAPISTS: Therapist[] = [
     workLocations: ["Greeley", "Farm", "Windsor"],
   }),
 
-  // --- Director (non-clinical) ---
+  // --- Directors (non-clinical) ---
+  makeTherapist("Lexie McConnaughey", "Marketing", 40, 0, {
+    isClinicalDirector: false,
+    workLocations: ["Greeley", "Farm", "Windsor"],
+  }),
   makeTherapist("Nicole Summerson", "Director", 40, 0, {
     isClinicalDirector: false,
     hireDate: "2018-10-11",

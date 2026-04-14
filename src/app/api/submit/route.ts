@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSubmission, deleteSubmission } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
-import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus, calculateSponsorshipBonus, SPONSORSHIP_SLUG } from "@/lib/bonus";
+import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus, calculateSponsorshipBonus, SPONSORSHIP_SLUG, MARKETING_SLUG, calculateMarketingReferralBonus, calculateMarketingMeetingBonus, calculateMarketingSponsorshipBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -142,6 +142,51 @@ export async function POST(request: NextRequest) {
       });
       // For Equine staff, bonus_amount stores walk bonus
       bonusAmount = equineWalkBonus;
+    }
+
+    // Lexie McConnaughey — Marketing Director bonus
+    if (therapist.role === "Marketing" && !pto && roleBonusInput) {
+      const rbd = roleBonusInput;
+      const otReferrals = parseInt(String(rbd.ot_referrals)) || 0;
+      const otOpenings = parseInt(String(rbd.ot_openings)) || 0;
+      const stReferrals = parseInt(String(rbd.st_referrals)) || 0;
+      const stOpenings = parseInt(String(rbd.st_openings)) || 0;
+      const newDoctorReferrals = parseInt(String(rbd.new_doctor_referrals)) || 0;
+      const newDaycareScreenings = parseInt(String(rbd.new_daycare_screenings)) || 0;
+      const dropinVisits = parseInt(String(rbd.dropin_physician_visits)) || 0;
+      const physicianMeetings = parseInt(String(rbd.physician_meetings)) || 0;
+      const nonPhysicianMeetings = parseInt(String(rbd.non_physician_meetings)) || 0;
+      const physicianTours = parseInt(String(rbd.physician_tours)) || 0;
+      const sponsorshipAmt = parseFloat(String(rbd.sponsorship_amount)) || 0;
+      const sponsorshipRecurring = Boolean(rbd.sponsorship_recurring);
+
+      const referralBonus = calculateMarketingReferralBonus(
+        otReferrals, otOpenings, stReferrals, stOpenings,
+        newDoctorReferrals, newDaycareScreenings
+      );
+      const meetingBonus = calculateMarketingMeetingBonus(
+        dropinVisits, physicianMeetings, nonPhysicianMeetings, physicianTours
+      );
+      const mktSponsorshipBonus = calculateMarketingSponsorshipBonus(sponsorshipAmt);
+
+      roleBonusDataStr = JSON.stringify({
+        ot_referrals: otReferrals,
+        ot_openings: otOpenings,
+        st_referrals: stReferrals,
+        st_openings: stOpenings,
+        new_doctor_referrals: newDoctorReferrals,
+        new_daycare_screenings: newDaycareScreenings,
+        referral_bonus: referralBonus,
+        dropin_physician_visits: dropinVisits,
+        physician_meetings: physicianMeetings,
+        non_physician_meetings: nonPhysicianMeetings,
+        physician_tours: physicianTours,
+        meeting_bonus: meetingBonus,
+        sponsorship_amount: sponsorshipAmt,
+        sponsorship_recurring: sponsorshipRecurring,
+        sponsorship_bonus: mktSponsorshipBonus,
+      });
+      bonusAmount = referralBonus + meetingBonus + mktSponsorshipBonus;
     }
 
     // Carolee Jaynes — Sponsorship bonus (on top of regular OTR bonus)

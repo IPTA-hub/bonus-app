@@ -140,6 +140,28 @@ export interface SponsorshipBonusData {
   sponsorship_bonus: number;
 }
 
+// Lexie McConnaughey (Marketing Director) role_bonus_data shape
+export interface MarketingBonusData {
+  // Bonus 1: Referrals
+  ot_referrals: number;
+  ot_openings: number;
+  st_referrals: number;
+  st_openings: number;
+  new_doctor_referrals: number;
+  new_daycare_screenings: number;
+  referral_bonus: number;
+  // Bonus 2: Meetings
+  dropin_physician_visits: number;
+  physician_meetings: number;
+  non_physician_meetings: number;
+  physician_tours: number;
+  meeting_bonus: number;
+  // Bonus 3: Sponsorships
+  sponsorship_amount: number;
+  sponsorship_recurring: boolean;
+  sponsorship_bonus: number;
+}
+
 export async function upsertSubmission(data: {
   therapist_slug: string;
   week_start: string;
