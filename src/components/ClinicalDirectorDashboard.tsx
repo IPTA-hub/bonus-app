@@ -11,6 +11,7 @@ import {
   getRetentionBonus,
   RETENTION_TIERS,
   CD_INDIVIDUAL_TIERS,
+  CD_ANNUAL_CAP,
 } from "@/lib/bonus";
 
 function formatPct(v: number | null): string {
@@ -100,6 +101,68 @@ function calculateWeeklyTeamData(
     });
 }
 
+// ---- SLP Team Data (across all locations) ----
+
+function calculateSLPWeeklyTeamData(
+  submissions: Submission[]
+): WeeklyTeamData[] {
+  // Get all SLP therapist slugs
+  const slpSlugs = THERAPISTS.filter((t) => t.role === "SLP").map((t) => t.slug);
+
+  // Group SLP submissions by week across all locations
+  const byWeek: Record<string, { sched: number; seen: number }> = {};
+
+  for (const s of submissions) {
+    if (s.is_pto || s.scheduled <= 0) continue;
+    if (!slpSlugs.includes(s.therapist_slug)) continue;
+
+    const week = s.week_start;
+    if (!byWeek[week]) byWeek[week] = { sched: 0, seen: 0 };
+
+    byWeek[week].sched += s.scheduled;
+    byWeek[week].seen += s.seen;
+  }
+
+  return Object.entries(byWeek)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, data]) => {
+      const rate = data.sched > 0 ? data.seen / data.sched : null;
+      const totalSched = Math.round(data.sched);
+      const vt = getVolumeTier(totalSched);
+      return {
+        weekStart: week,
+        location: "All Locations (SLP)",
+        totalScheduled: totalSched,
+        totalSeen: Math.round(data.seen),
+        arrivalRate: rate,
+        teamBonus: rate !== null && vt ? calculateCDTeamBonus(rate, totalSched) : 0,
+        volumeTier: vt ? getVolumeTierLabel(vt) : "Below minimum",
+      };
+    });
+}
+
+// ---- SLP Retention Data ----
+
+function calculateSLPRetentionData(): RetentionEntry[] {
+  // Full-time SLP therapists (not clinical directors)
+  const staff = THERAPISTS.filter(
+    (t) => t.role === "SLP" && !t.isClinicalDirector && t.isFullTime && t.hireDate
+  );
+
+  return staff.map((t) => {
+    const years = getYearsOfService(t.hireDate!);
+    const bonus = getRetentionBonus(years);
+    return {
+      name: t.name,
+      role: t.role,
+      hireDate: t.hireDate!,
+      years,
+      bonus,
+      workLocations: t.workLocations,
+    };
+  }).sort((a, b) => b.years - a.years);
+}
+
 // ---- Retention Data ----
 
 interface RetentionEntry {
@@ -174,19 +237,25 @@ export default function ClinicalDirectorDashboard() {
         const individualBonusTotal = subs.reduce((a, s) => a + (Number(s.bonus_amount) || 0), 0);
         const evalBonusTotal = subs.reduce((a, s) => a + (Number(s.eval_bonus) || 0), 0);
 
-        // Team data (only for location-based directors)
-        const hasLocationTeam = dir.directorLocation && dir.directorLocation !== "SLP";
+        // Team data
+        const isSLPDirector = dir.directorLocation === "SLP";
+        const hasLocationTeam = !!dir.directorLocation;
+
+        // For SLP director, track SLP therapists across all locations
+        // For other directors, track their specific location
+        const teamTrackingLabel = isSLPDirector ? "SLP (All Locations)" : dir.directorLocation!;
         const teamData = hasLocationTeam
-          ? calculateWeeklyTeamData(data, dir.directorLocation!)
+          ? (isSLPDirector
+            ? calculateSLPWeeklyTeamData(data)
+            : calculateWeeklyTeamData(data, dir.directorLocation!))
           : [];
         const teamBonusTotal = teamData.reduce((a, w) => a + w.teamBonus, 0);
 
-        // For SLP director, calculate team across SLP therapists at all locations
-        const isSLPDirector = dir.directorLocation === "SLP";
-
         // Retention data
         const retentionData = hasLocationTeam
-          ? calculateRetentionData(dir.directorLocation!)
+          ? (isSLPDirector
+            ? calculateSLPRetentionData()
+            : calculateRetentionData(dir.directorLocation!))
           : [];
         const retentionTotal = retentionData.reduce((a, r) => {
           // Pro-rate if staff works at multiple locations
@@ -199,22 +268,40 @@ export default function ClinicalDirectorDashboard() {
         return (
           <div key={dir.slug} className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Director Header */}
-            <div className="bg-gradient-to-r from-ipta-teal to-ipta-maroon px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-white">{dir.name}</h2>
-                  <p className="text-white/80">
-                    {dir.role} &mdash; {dir.directorLocation} Clinical Director
-                  </p>
+            {(() => {
+              const grandTotal = individualBonusTotal + evalBonusTotal + teamBonusTotal;
+              const cappedTotal = Math.min(grandTotal, CD_ANNUAL_CAP);
+              const isNearCap = grandTotal >= CD_ANNUAL_CAP * 0.8;
+              const isAtCap = grandTotal >= CD_ANNUAL_CAP;
+              return (
+                <div className="bg-gradient-to-r from-ipta-teal to-ipta-maroon px-6 py-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h2 className="text-xl font-bold text-white">{dir.name}</h2>
+                      <p className="text-white/80">
+                        {dir.role} &mdash; {dir.directorLocation} Clinical Director
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-white/60 uppercase">Total YTD {isAtCap ? "(Capped)" : ""}</p>
+                      <p className="text-2xl font-bold text-white">
+                        ${cappedTotal.toFixed(2)}
+                      </p>
+                      <p className={`text-xs ${isNearCap ? "text-amber-300" : "text-white/50"}`}>
+                        ${CD_ANNUAL_CAP.toLocaleString()} annual cap &middot; ${Math.max(0, CD_ANNUAL_CAP - grandTotal).toFixed(0)} remaining
+                      </p>
+                    </div>
+                  </div>
+                  {/* Cap progress bar */}
+                  <div className="mt-3 bg-white/20 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${isAtCap ? "bg-amber-400" : "bg-white/80"}`}
+                      style={{ width: `${Math.min(100, (grandTotal / CD_ANNUAL_CAP) * 100)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-white/60 uppercase">Total All Bonuses</p>
-                  <p className="text-2xl font-bold text-white">
-                    ${(individualBonusTotal + evalBonusTotal + teamBonusTotal).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             <div className="p-6 space-y-8">
               {/* ---- BONUS 1: Individual Productivity ---- */}
@@ -222,6 +309,7 @@ export default function ClinicalDirectorDashboard() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <span className="w-7 h-7 rounded-full bg-ipta-teal-50 text-ipta-teal flex items-center justify-center text-sm font-bold">1</span>
                   Individual Productivity
+                  <span className="text-xs font-normal text-gray-400 ml-2">Weekly &middot; Paid biweekly</span>
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div className="bg-gray-50 rounded-lg p-3 text-center">
@@ -336,7 +424,8 @@ export default function ClinicalDirectorDashboard() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">2</span>
-                    Team Productivity &mdash; {dir.directorLocation}
+                    Team Productivity &mdash; {teamTrackingLabel}
+                    <span className="text-xs font-normal text-gray-400 ml-2">Weekly &middot; Paid biweekly</span>
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                     <div className="bg-gray-50 rounded-lg p-3 text-center">
@@ -456,24 +545,14 @@ export default function ClinicalDirectorDashboard() {
                 </div>
               )}
 
-              {isSLPDirector && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">2</span>
-                    SLP Team Oversight
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    SLP team productivity is tracked across all locations on the admin dashboard.
-                  </p>
-                </div>
-              )}
 
               {/* ---- BONUS 3: Staff Retention ---- */}
               {hasLocationTeam && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-sm font-bold">3</span>
-                    Staff Retention &mdash; {dir.directorLocation}
+                    Staff Retention &mdash; {teamTrackingLabel}
+                    <span className="text-xs font-normal text-gray-400 ml-2">Annual &middot; Paid after review</span>
                   </h3>
 
                   <div className="grid grid-cols-2 gap-4 mb-4">
@@ -580,6 +659,10 @@ export default function ClinicalDirectorDashboard() {
                   )}
                 </div>
               )}
+              {/* Disclaimer */}
+              <p className="text-xs text-gray-400 italic pt-2 border-t border-gray-100">
+                All bonuses are subject to change at any time at the discretion of management. Annual bonus cap: ${CD_ANNUAL_CAP.toLocaleString()}.
+              </p>
             </div>
           </div>
         );

@@ -102,8 +102,18 @@ export function calculateEvalBonus(
 }
 
 // ============================================================
+// CLINICAL DIRECTOR BONUS STRUCTURE
+// ============================================================
+// Applies to: Katie Kiblen, Kristina Ihrig, Stephanie Voorhes
+// Annual cap: $8,000 across all 3 bonus types
+// Bonuses subject to change at discretion of management
+
+export const CD_ANNUAL_CAP = 8000;
+
+// ============================================================
 // CLINICAL DIRECTOR BONUS 1: Individual Productivity
 // ============================================================
+// Frequency: earned weekly, paid out biweekly with payroll
 // Minimum 5 patients/week to qualify
 // 95-99.99% = $75, 100-109.99% = $100, 110%+ = $125
 
