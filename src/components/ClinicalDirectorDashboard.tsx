@@ -154,28 +154,76 @@ function calculateSLPRetentionData(): RetentionEntry[] {
     const bonus = getRetentionBonus(years);
     return {
       name: t.name,
+      slug: t.slug,
       role: t.role,
       hireDate: t.hireDate!,
       years,
       bonus,
       workLocations: t.workLocations,
+      locationShare: 1, // SLP director gets full retention bonus for SLP staff
     };
   }).sort((a, b) => b.years - a.years);
+}
+
+// ---- Location Share from Submission Data ----
+
+// Calculate what % of a therapist's time is at each location based on actual submissions
+function calculateLocationShares(
+  submissions: Submission[],
+  therapistSlug: string
+): Record<string, number> {
+  const locSeen: Record<string, number> = {};
+  let totalSeen = 0;
+
+  const subs = submissions.filter((s) => s.therapist_slug === therapistSlug && !s.is_pto);
+  for (const s of subs) {
+    if (s.location_data) {
+      try {
+        const ld: Record<string, { seen: number }> = JSON.parse(s.location_data);
+        for (const [loc, vals] of Object.entries(ld)) {
+          const seen = Number(vals.seen) || 0;
+          locSeen[loc] = (locSeen[loc] || 0) + seen;
+          totalSeen += seen;
+        }
+      } catch { /* skip */ }
+    } else if (s.locations) {
+      // Old data: split evenly across listed locations
+      const locs = s.locations.split(",").filter(Boolean);
+      const perLoc = s.seen / locs.length;
+      for (const loc of locs) {
+        locSeen[loc] = (locSeen[loc] || 0) + perLoc;
+        totalSeen += perLoc;
+      }
+    }
+  }
+
+  const shares: Record<string, number> = {};
+  if (totalSeen > 0) {
+    for (const [loc, seen] of Object.entries(locSeen)) {
+      shares[loc] = seen / totalSeen;
+    }
+  }
+  return shares;
 }
 
 // ---- Retention Data ----
 
 interface RetentionEntry {
   name: string;
+  slug: string;
   role: string;
   hireDate: string;
   years: number;
   bonus: number;
   workLocations: string[];
+  locationShare: number; // actual % of time at this director's location
 }
 
-function calculateRetentionData(location: string): RetentionEntry[] {
-  // Only full-time therapists at this location (not clinical directors)
+function calculateRetentionData(
+  location: string,
+  submissions: Submission[]
+): RetentionEntry[] {
+  // Full-time therapists who have worked at this location (from submissions or config)
   const staff = THERAPISTS.filter(
     (t) => !t.isClinicalDirector && t.isFullTime && t.workLocations.includes(location) && t.hireDate
   );
@@ -183,13 +231,21 @@ function calculateRetentionData(location: string): RetentionEntry[] {
   return staff.map((t) => {
     const years = getYearsOfService(t.hireDate!);
     const bonus = getRetentionBonus(years);
+    const shares = calculateLocationShares(submissions, t.slug);
+    // Use actual submission data if available, otherwise fall back to even split
+    const locShare = shares[location] !== undefined
+      ? shares[location]
+      : (t.workLocations.length > 0 ? 1 / t.workLocations.length : 1);
+
     return {
       name: t.name,
+      slug: t.slug,
       role: t.role,
       hireDate: t.hireDate!,
       years,
       bonus,
       workLocations: t.workLocations,
+      locationShare: locShare,
     };
   }).sort((a, b) => b.years - a.years);
 }
@@ -251,18 +307,14 @@ export default function ClinicalDirectorDashboard() {
           : [];
         const teamBonusTotal = teamData.reduce((a, w) => a + w.teamBonus, 0);
 
-        // Retention data
+        // Retention data — prorated by actual time at location from submissions
         const retentionData = hasLocationTeam
           ? (isSLPDirector
             ? calculateSLPRetentionData()
-            : calculateRetentionData(dir.directorLocation!))
+            : calculateRetentionData(dir.directorLocation!, data))
           : [];
         const retentionTotal = retentionData.reduce((a, r) => {
-          // Pro-rate if staff works at multiple locations
-          const locShare = r.workLocations.length > 0
-            ? 1 / r.workLocations.length
-            : 1;
-          return a + (r.bonus * locShare);
+          return a + (r.bonus * r.locationShare);
         }, 0);
 
         return (
@@ -591,9 +643,7 @@ export default function ClinicalDirectorDashboard() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
-                            {retentionData.map((r) => {
-                              const locShare = r.workLocations.length > 0 ? 1 / r.workLocations.length : 1;
-                              return (
+                            {retentionData.map((r) => (
                                 <tr key={r.name} className="hover:bg-gray-50">
                                   <td className="px-3 py-2 font-medium">{r.name}</td>
                                   <td className="px-3 py-2">{r.role}</td>
@@ -601,23 +651,25 @@ export default function ClinicalDirectorDashboard() {
                                     {new Date(r.hireDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                                   </td>
                                   <td className="px-3 py-2">{r.years}</td>
-                                  <td className="px-3 py-2 text-xs">{r.workLocations.join(", ")}</td>
+                                  <td className="px-3 py-2 text-xs">
+                                    {r.workLocations.join(", ")}
+                                    {r.locationShare < 1 && (
+                                      <span className="text-purple-600 ml-1">({(r.locationShare * 100).toFixed(0)}% here)</span>
+                                    )}
+                                  </td>
                                   <td className="px-3 py-2 font-medium text-green-600">
                                     {r.bonus > 0
-                                      ? `$${(r.bonus * locShare).toFixed(2)}${locShare < 1 ? ` (of $${r.bonus})` : ""}`
+                                      ? `$${(r.bonus * r.locationShare).toFixed(2)}${r.locationShare < 1 ? ` (of $${r.bonus})` : ""}`
                                       : "-"}
                                   </td>
                                 </tr>
-                              );
-                            })}
+                              ))}
                           </tbody>
                         </table>
                       </div>
                       {/* Mobile cards */}
                       <div className="md:hidden space-y-3">
-                        {retentionData.map((r) => {
-                          const locShare = r.workLocations.length > 0 ? 1 / r.workLocations.length : 1;
-                          return (
+                        {retentionData.map((r) => (
                             <div key={r.name} className="bg-gray-50 rounded-lg p-4">
                               <div className="flex items-center justify-between mb-3">
                                 <div>
@@ -626,7 +678,7 @@ export default function ClinicalDirectorDashboard() {
                                 </div>
                                 {r.bonus > 0 ? (
                                   <span className="bg-green-100 text-green-700 font-bold text-sm px-2 py-1 rounded">
-                                    ${(r.bonus * locShare).toFixed(2)}
+                                    ${(r.bonus * r.locationShare).toFixed(2)}
                                   </span>
                                 ) : (
                                   <span className="text-gray-400 text-sm">-</span>
@@ -643,17 +695,22 @@ export default function ClinicalDirectorDashboard() {
                                   <p className="text-xs text-gray-500">Years</p>
                                   <p className="font-medium text-gray-900">{r.years}</p>
                                 </div>
-                                <div className="min-h-[44px] flex flex-col justify-center col-span-2">
+                                <div className="min-h-[44px] flex flex-col justify-center">
                                   <p className="text-xs text-gray-500">Locations</p>
                                   <p className="font-medium text-gray-900 text-sm">{r.workLocations.join(", ")}</p>
                                 </div>
+                                {r.locationShare < 1 && (
+                                  <div className="min-h-[44px] flex flex-col justify-center">
+                                    <p className="text-xs text-gray-500">Time Here</p>
+                                    <p className="font-medium text-purple-600 text-sm">{(r.locationShare * 100).toFixed(0)}%</p>
+                                  </div>
+                                )}
                               </div>
-                              {locShare < 1 && r.bonus > 0 && (
-                                <p className="text-xs text-gray-400 mt-2">Full bonus: ${r.bonus}</p>
+                              {r.locationShare < 1 && r.bonus > 0 && (
+                                <p className="text-xs text-gray-400 mt-2">Full bonus: ${r.bonus} &middot; Prorated by actual time at location</p>
                               )}
                             </div>
-                          );
-                        })}
+                          ))}
                       </div>
                     </>
                   )}

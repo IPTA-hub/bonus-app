@@ -23,15 +23,21 @@ interface LocationEntry {
 
 export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [weekStart, setWeekStart] = useState(getMondayOfWeek(new Date()));
-  // Single-location fields (used when 0 or 1 location selected)
+  // Single-location fields (fallback when no locations selected)
   const [available, setAvailable] = useState(String(therapist.expectedVisits));
   const [scheduled, setScheduled] = useState("");
   const [seen, setSeen] = useState("");
-  // Per-location fields (used when 2+ locations selected)
-  const [locationEntries, setLocationEntries] = useState<Record<string, LocationEntry>>({});
+  // Per-location fields (always used when locations are selected)
+  const [locationEntries, setLocationEntries] = useState<Record<string, LocationEntry>>(() => {
+    const entries: Record<string, LocationEntry> = {};
+    for (const loc of therapist.workLocations) {
+      entries[loc] = { available: "", scheduled: "", seen: "" };
+    }
+    return entries;
+  });
 
   const [isPto, setIsPto] = useState(false);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(therapist.workLocations);
   const [evalsCompleted, setEvalsCompleted] = useState("");
   const [evalsWithDevCodes, setEvalsWithDevCodes] = useState("");
   const [notes, setNotes] = useState("");
@@ -94,18 +100,19 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const hasLocations = selectedLocations.length > 0;
   const isMultiLocation = selectedLocations.length > 1;
 
   // Compute totals from per-location entries
-  const multiTotalAvailable = selectedLocations.reduce(
+  const locTotalAvailable = selectedLocations.reduce(
     (sum, loc) => sum + (parseInt(locationEntries[loc]?.available || "0") || 0),
     0
   );
-  const multiTotalScheduled = selectedLocations.reduce(
+  const locTotalScheduled = selectedLocations.reduce(
     (sum, loc) => sum + (parseInt(locationEntries[loc]?.scheduled || "0") || 0),
     0
   );
-  const multiTotalSeen = selectedLocations.reduce(
+  const locTotalSeen = selectedLocations.reduce(
     (sum, loc) => sum + (parseInt(locationEntries[loc]?.seen || "0") || 0),
     0
   );
@@ -175,9 +182,20 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
       }
     }
 
-    if (locData && locs.length > 1) {
+    if (locData) {
       setLocationEntries(locData);
-      // Clear single fields since we're in multi-location mode
+      setAvailable(String(therapist.expectedVisits));
+      setScheduled("");
+      setSeen("");
+    } else if (locs.length === 1) {
+      // Old single-location submission — load into per-location entry
+      setLocationEntries({
+        [locs[0]]: {
+          available: String(submission.available || ""),
+          scheduled: String(submission.scheduled || ""),
+          seen: String(submission.seen || ""),
+        },
+      });
       setAvailable(String(therapist.expectedVisits));
       setScheduled("");
       setSeen("");
@@ -351,8 +369,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           : undefined,
       };
 
-      if (isMultiLocation) {
-        // Build location_data object with per-location breakdown
+      if (hasLocations) {
+        // Always build location_data when locations are selected
         const locData: Record<string, { available: number; scheduled: number; seen: number }> = {};
         for (const loc of selectedLocations) {
           const entry = locationEntries[loc] || { available: "0", scheduled: "0", seen: "0" };
@@ -363,10 +381,9 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           };
         }
         requestBody.location_data = locData;
-        // Totals computed server-side from location_data
-        requestBody.available = multiTotalAvailable;
-        requestBody.scheduled = multiTotalScheduled;
-        requestBody.seen = multiTotalSeen;
+        requestBody.available = locTotalAvailable;
+        requestBody.scheduled = locTotalScheduled;
+        requestBody.seen = locTotalSeen;
       } else {
         requestBody.available = parseInt(available) || 0;
         requestBody.scheduled = parseInt(scheduled) || 0;
@@ -458,7 +475,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Location(s) Worked This Week
+              Location(s) This Week <span className="text-xs text-gray-400 font-normal">(select all that apply)</span>
             </label>
             <div className="flex gap-4">
               {LOCATIONS.map((loc) => (
@@ -477,12 +494,14 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
 
           {!isPto && !hidePatientTracking && (
             <>
-              {isMultiLocation ? (
-                /* ---- Per-Location Fields ---- */
+              {hasLocations ? (
+                /* ---- Per-Location Fields (always shown when locations selected) ---- */
                 <div className="space-y-4">
-                  <p className="text-sm text-ipta-teal bg-ipta-teal-50 border border-ipta-teal-100 rounded-lg px-3 py-2">
-                    Enter data separately for each location you worked this week. Totals are calculated automatically.
-                  </p>
+                  {isMultiLocation && (
+                    <p className="text-sm text-ipta-teal bg-ipta-teal-50 border border-ipta-teal-100 rounded-lg px-3 py-2">
+                      Enter data separately for each location you worked this week.
+                    </p>
+                  )}
                   {selectedLocations.map((loc) => {
                     const entry = locationEntries[loc] || { available: "", scheduled: "", seen: "" };
                     return (
@@ -516,7 +535,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                               onChange={(e) =>
                                 updateLocationEntry(loc, "available", e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+                              className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                               placeholder="0"
                             />
                           </div>
@@ -531,7 +550,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                               onChange={(e) =>
                                 updateLocationEntry(loc, "scheduled", e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+                              className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                               placeholder="0"
                             />
                           </div>
@@ -546,7 +565,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                               onChange={(e) =>
                                 updateLocationEntry(loc, "seen", e.target.value)
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+                              className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                               placeholder="0"
                             />
                           </div>
@@ -554,75 +573,31 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                       </div>
                     );
                   })}
-                  {/* Totals row */}
-                  <div className="border border-ipta-teal-100 rounded-lg p-3 bg-ipta-teal-50">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
-                      <div>
-                        <p className="text-xs text-ipta-teal font-medium">Total Available</p>
-                        <p className="text-lg font-bold text-ipta-teal">{multiTotalAvailable}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-ipta-teal font-medium">Total Scheduled</p>
-                        <p className="text-lg font-bold text-ipta-teal">{multiTotalScheduled}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-ipta-teal font-medium">Total Seen</p>
-                        <p className="text-lg font-bold text-ipta-teal">{multiTotalSeen}</p>
+                  {/* Totals row (show when multi-location) */}
+                  {isMultiLocation && (
+                    <div className="border border-ipta-teal-100 rounded-lg p-3 bg-ipta-teal-50">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                        <div>
+                          <p className="text-xs text-ipta-teal font-medium">Total Available</p>
+                          <p className="text-lg font-bold text-ipta-teal">{locTotalAvailable}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-ipta-teal font-medium">Total Scheduled</p>
+                          <p className="text-lg font-bold text-ipta-teal">{locTotalScheduled}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-ipta-teal font-medium">Total Seen</p>
+                          <p className="text-lg font-bold text-ipta-teal">{locTotalSeen}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
-                /* ---- Single Location Fields ---- */
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Appointments Available
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={available}
-                      onChange={(e) => setAvailable(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
-                      placeholder="e.g. 45"
-                      required={!isPto}
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Total appointment slots open this week
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Patients Scheduled
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={scheduled}
-                      onChange={(e) => setScheduled(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
-                      placeholder="e.g. 42"
-                      required={!isPto}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Patients Seen (Arrivals)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={seen}
-                      onChange={(e) => setSeen(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
-                      placeholder="e.g. 38"
-                      required={!isPto}
-                    />
-                  </div>
-                </>
+                /* ---- No location selected — prompt ---- */
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Please select at least one location above to enter your weekly data.
+                </p>
               )}
 
               {/* Eval tracking for OTR and SLP */}
