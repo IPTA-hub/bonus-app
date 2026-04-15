@@ -556,7 +556,7 @@ function LocationView({ summaries }: { summaries: LocationSummary[] }) {
         {summaries.map((loc) => (
           <div key={loc.location} className="bg-white rounded-xl shadow p-6 border-t-4" style={{ borderTopColor: LOCATION_COLORS[loc.location] || "#6b7280" }}>
             <h3 className="text-xl font-bold text-gray-900 mb-4">{loc.location}</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <p className="text-xs text-gray-500 uppercase">Utilization</p>
                 <p className="text-xl font-bold text-purple-600">{formatPct(loc.avgUtilization)}</p>
@@ -568,8 +568,12 @@ function LocationView({ summaries }: { summaries: LocationSummary[] }) {
                 </p>
               </div>
               <div>
+                <p className="text-xs text-gray-500 uppercase">Available</p>
+                <p className="text-xl font-bold text-gray-900">{loc.totalAvailable.toLocaleString()}</p>
+              </div>
+              <div>
                 <p className="text-xs text-gray-500 uppercase">Patients Seen</p>
-                <p className="text-xl font-bold text-gray-900">{loc.totalSeen.toLocaleString()}</p>
+                <p className="text-xl font-bold text-ipta-teal">{loc.totalSeen.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Total Bonus</p>
