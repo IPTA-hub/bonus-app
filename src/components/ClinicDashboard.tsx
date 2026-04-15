@@ -68,9 +68,69 @@ function buildSummaries(submissions: Submission[]): TherapistSummary[] {
   });
 }
 
+interface LocationSummary {
+  name: string;
+  totalAvailable: number;
+  totalScheduled: number;
+  totalSeen: number;
+  arrivalRate: number | null;
+  utilization: number | null;
+  weeksWithData: number;
+}
+
+const LOCATIONS = ["Greeley", "Windsor", "Farm"];
+
+function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
+  const locTotals: Record<string, { available: number; scheduled: number; seen: number; weeks: Set<string> }> = {};
+  for (const loc of LOCATIONS) {
+    locTotals[loc] = { available: 0, scheduled: 0, seen: 0, weeks: new Set() };
+  }
+
+  for (const sub of submissions) {
+    if (sub.is_pto || !sub.location_data) continue;
+    try {
+      const ld: Record<string, { available: number; scheduled: number; seen: number }> = JSON.parse(sub.location_data);
+      for (const [loc, vals] of Object.entries(ld)) {
+        if (!locTotals[loc]) locTotals[loc] = { available: 0, scheduled: 0, seen: 0, weeks: new Set() };
+        locTotals[loc].available += vals.available || 0;
+        locTotals[loc].scheduled += vals.scheduled || 0;
+        locTotals[loc].seen += vals.seen || 0;
+        locTotals[loc].weeks.add(sub.week_start);
+      }
+    } catch { /* skip bad data */ }
+  }
+
+  // Also count single-location therapists who don't use location_data
+  for (const sub of submissions) {
+    if (sub.is_pto || sub.location_data) continue;
+    const therapist = THERAPISTS.find((t) => t.slug === sub.therapist_slug);
+    if (!therapist || therapist.workLocations.length !== 1) continue;
+    const loc = therapist.workLocations[0];
+    if (!locTotals[loc]) locTotals[loc] = { available: 0, scheduled: 0, seen: 0, weeks: new Set() };
+    locTotals[loc].available += sub.available || 0;
+    locTotals[loc].scheduled += sub.scheduled || 0;
+    locTotals[loc].seen += sub.seen || 0;
+    locTotals[loc].weeks.add(sub.week_start);
+  }
+
+  return LOCATIONS.map((loc) => {
+    const t = locTotals[loc];
+    return {
+      name: loc,
+      totalAvailable: t.available,
+      totalScheduled: t.scheduled,
+      totalSeen: t.seen,
+      arrivalRate: t.scheduled > 0 ? t.seen / t.scheduled : null,
+      utilization: t.available > 0 ? t.scheduled / t.available : null,
+      weeksWithData: t.weeks.size,
+    };
+  });
+}
+
 export default function ClinicDashboard() {
   const [data, setData] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"overview" | "byLocation">("overview");
 
   useEffect(() => {
     fetch("/api/data")
@@ -105,6 +165,8 @@ export default function ClinicDashboard() {
     }))
     .sort((a, b) => b.rate - a.rate);
 
+  const locationSummaries = buildLocationSummaries(data);
+
   return (
     <div className="space-y-8">
       {/* Clinic-wide stats */}
@@ -135,8 +197,120 @@ export default function ClinicDashboard() {
         </div>
       </div>
 
+      {/* Tab navigation */}
+      <div className="flex gap-1 bg-white rounded-xl shadow p-1">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+            activeTab === "overview"
+              ? "bg-ipta-teal text-white"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab("byLocation")}
+          className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+            activeTab === "byLocation"
+              ? "bg-ipta-teal text-white"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          }`}
+        >
+          By Location
+        </button>
+      </div>
+
+      {/* By Location tab */}
+      {activeTab === "byLocation" && (
+        <div className="space-y-6">
+          {/* Location cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {locationSummaries.map((loc) => (
+              <div key={loc.name} className="bg-white rounded-xl shadow p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-ipta-teal" />
+                  {loc.name}
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Total Available</span>
+                    <span className="text-xl font-bold text-gray-900">{loc.totalAvailable.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Total Scheduled</span>
+                    <span className="text-xl font-bold text-gray-900">{loc.totalScheduled.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Total Seen</span>
+                    <span className="text-xl font-bold text-ipta-teal">{loc.totalSeen.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t border-gray-100 pt-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-500">Arrival Rate</span>
+                      <span className={`text-xl font-bold ${
+                        loc.arrivalRate !== null
+                          ? loc.arrivalRate >= 0.9 ? "text-green-600"
+                            : loc.arrivalRate >= 0.85 ? "text-amber-600"
+                            : "text-red-600"
+                          : "text-gray-400"
+                      }`}>
+                        {loc.arrivalRate !== null ? `${(loc.arrivalRate * 100).toFixed(1)}%` : "N/A"}
+                      </span>
+                    </div>
+                    {loc.arrivalRate !== null && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${
+                            loc.arrivalRate >= 0.9 ? "bg-green-500"
+                              : loc.arrivalRate >= 0.85 ? "bg-amber-500"
+                              : "bg-red-500"
+                          }`}
+                          style={{ width: `${Math.min(loc.arrivalRate * 100, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Utilization</span>
+                    <span className="font-bold text-purple-600">
+                      {loc.utilization !== null ? `${(loc.utilization * 100).toFixed(1)}%` : "N/A"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400">{loc.weeksWithData} weeks of data</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Location comparison chart */}
+          {locationSummaries.some((l) => l.arrivalRate !== null) && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Location Comparison
+              </h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={locationSummaries.filter((l) => l.arrivalRate !== null).map((l) => ({
+                  name: l.name,
+                  available: l.totalAvailable,
+                  seen: l.totalSeen,
+                  rate: l.arrivalRate!,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="available" name="Available" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="seen" name="Seen" fill="#2D9F93" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Comparison chart */}
-      {chartData.length > 0 && (
+      {activeTab === "overview" && chartData.length > 0 && (
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Arrival Rate by Therapist
@@ -175,7 +349,7 @@ export default function ClinicDashboard() {
       )}
 
       {/* Therapist table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      {activeTab === "overview" && <div className="bg-white rounded-xl shadow overflow-hidden">
         <h3 className="text-lg font-semibold text-gray-900 p-6 pb-3">
           All Therapists
         </h3>
@@ -308,7 +482,7 @@ export default function ClinicDashboard() {
             </tbody>
           </table>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
