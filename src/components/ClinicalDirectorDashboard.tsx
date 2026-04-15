@@ -223,9 +223,9 @@ function calculateRetentionData(
   location: string,
   submissions: Submission[]
 ): RetentionEntry[] {
-  // Full-time therapists who have worked at this location (from submissions or config)
+  // Full-time therapists at this location (exclude Equine — they're under Marley's retention)
   const staff = THERAPISTS.filter(
-    (t) => !t.isClinicalDirector && t.isFullTime && t.workLocations.includes(location) && t.hireDate
+    (t) => !t.isClinicalDirector && t.isFullTime && t.role !== "Equine" && t.workLocations.includes(location) && t.hireDate
   );
 
   return staff.map((t) => {
