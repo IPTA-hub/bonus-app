@@ -558,22 +558,18 @@ function LocationView({ summaries }: { summaries: LocationSummary[] }) {
             <h3 className="text-xl font-bold text-gray-900 mb-4">{loc.location}</h3>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
-                <p className="text-xs text-gray-500 uppercase">Utilization</p>
-                <p className="text-xl font-bold text-purple-600">{formatPct(loc.avgUtilization)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase">Arrival Rate</p>
-                <p className={`text-xl font-bold ${loc.avgRate && loc.avgRate >= 0.9 ? "text-green-600" : loc.avgRate && loc.avgRate >= 0.85 ? "text-amber-600" : "text-red-600"}`}>
-                  {formatPct(loc.avgRate)}
-                </p>
-              </div>
-              <div>
                 <p className="text-xs text-gray-500 uppercase">Available</p>
                 <p className="text-xl font-bold text-gray-900">{loc.totalAvailable.toLocaleString()}</p>
               </div>
               <div>
+                <p className="text-xs text-gray-500 uppercase">Scheduled</p>
+                <p className="text-xl font-bold text-gray-900">{loc.totalScheduled.toLocaleString()}</p>
+                <p className="text-xs text-purple-600 font-medium">{formatPct(loc.avgUtilization)} util.</p>
+              </div>
+              <div>
                 <p className="text-xs text-gray-500 uppercase">Patients Seen</p>
-                <p className="text-xl font-bold text-ipta-teal">{loc.totalSeen.toLocaleString()}</p>
+                <p className={`text-xl font-bold ${loc.avgRate && loc.avgRate >= 0.9 ? "text-green-600" : loc.avgRate && loc.avgRate >= 0.85 ? "text-amber-600" : "text-red-600"}`}>{loc.totalSeen.toLocaleString()}</p>
+                <p className={`text-xs font-medium ${loc.avgRate && loc.avgRate >= 0.9 ? "text-green-600" : loc.avgRate && loc.avgRate >= 0.85 ? "text-amber-600" : "text-red-600"}`}>{formatPct(loc.avgRate)} arrival</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase">Total Bonus</p>
