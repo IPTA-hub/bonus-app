@@ -635,10 +635,50 @@ function LocationView({ summaries }: { summaries: LocationSummary[] }) {
 
 // ---- Main Component ----
 
+type PeriodMode = "week" | "month" | "all";
+
+function getAvailableWeeks(data: Submission[]): string[] {
+  const weeks = new Set<string>();
+  for (const s of data) {
+    if (s.week_start) weeks.add(s.week_start.split("T")[0]);
+  }
+  return Array.from(weeks).sort().reverse();
+}
+
+function getAvailableMonths(data: Submission[]): string[] {
+  const months = new Set<string>();
+  for (const s of data) {
+    if (s.week_start) months.add(s.week_start.split("T")[0].slice(0, 7));
+  }
+  return Array.from(months).sort().reverse();
+}
+
+function formatWeekLabel(weekStart: string): string {
+  const d = new Date(weekStart + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatMonthLabel(ym: string): string {
+  const [y, m] = ym.split("-");
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+function filterByPeriod(data: Submission[], mode: PeriodMode, selected: string): Submission[] {
+  if (mode === "all") return data;
+  if (mode === "week") {
+    return data.filter((s) => s.week_start.split("T")[0] === selected);
+  }
+  // month
+  return data.filter((s) => s.week_start.split("T")[0].slice(0, 7) === selected);
+}
+
 export default function AdminDashboard() {
   const [data, setData] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("submissions");
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
 
   useEffect(() => {
     fetch("/api/data")
@@ -656,9 +696,31 @@ export default function AdminDashboard() {
     );
   }
 
-  const staffSummaries = buildStaffSummaries(data);
+  const availableWeeks = getAvailableWeeks(data);
+  const availableMonths = getAvailableMonths(data);
+
+  // Auto-select the most recent period when switching modes
+  function handlePeriodModeChange(mode: PeriodMode) {
+    setPeriodMode(mode);
+    if (mode === "week" && availableWeeks.length > 0) {
+      setSelectedPeriod(availableWeeks[0]);
+    } else if (mode === "month" && availableMonths.length > 0) {
+      setSelectedPeriod(availableMonths[0]);
+    } else {
+      setSelectedPeriod("");
+    }
+  }
+
+  const filteredData = filterByPeriod(data, periodMode, selectedPeriod);
+  const periodLabel = periodMode === "week" && selectedPeriod
+    ? `Week of ${formatWeekLabel(selectedPeriod)}`
+    : periodMode === "month" && selectedPeriod
+    ? formatMonthLabel(selectedPeriod)
+    : "All Time";
+
+  const staffSummaries = buildStaffSummaries(filteredData);
   const disciplineSummaries = buildDisciplineSummaries(staffSummaries);
-  const locationSummaries = buildLocationSummaries(data);
+  const locationSummaries = buildLocationSummaries(filteredData);
 
   // Clinic-wide totals
   const withData = staffSummaries.filter((s) => s.avgRate !== null);
@@ -679,6 +741,56 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Period filter */}
+      <div className="bg-white rounded-xl shadow p-4">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            {(["week", "month", "all"] as PeriodMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handlePeriodModeChange(mode)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition min-h-[44px] ${
+                  periodMode === mode
+                    ? "bg-ipta-teal text-white shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                {mode === "week" ? "Weekly" : mode === "month" ? "Monthly" : "All Time"}
+              </button>
+            ))}
+          </div>
+          {periodMode === "week" && availableWeeks.length > 0 && (
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px] focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+            >
+              {availableWeeks.map((w) => (
+                <option key={w} value={w}>
+                  Week of {formatWeekLabel(w)}
+                </option>
+              ))}
+            </select>
+          )}
+          {periodMode === "month" && availableMonths.length > 0 && (
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px] focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+            >
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  {formatMonthLabel(m)}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="text-sm text-gray-500 ml-auto">
+            {filteredData.length} submission{filteredData.length !== 1 ? "s" : ""} — {periodLabel}
+          </span>
+        </div>
+      </div>
+
       {/* Clinic-wide headline stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl p-5 shadow text-center">
