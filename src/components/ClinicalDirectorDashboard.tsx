@@ -144,9 +144,9 @@ function calculateSLPWeeklyTeamData(
 // ---- SLP Retention Data ----
 
 function calculateSLPRetentionData(): RetentionEntry[] {
-  // Full-time SLP therapists (not clinical directors)
+  // SLP therapists (not clinical directors)
   const staff = THERAPISTS.filter(
-    (t) => t.role === "SLP" && !t.isClinicalDirector && t.isFullTime && t.hireDate
+    (t) => t.role === "SLP" && !t.isClinicalDirector && t.hireDate
   );
 
   return staff.map((t) => {
@@ -223,9 +223,9 @@ function calculateRetentionData(
   location: string,
   submissions: Submission[]
 ): RetentionEntry[] {
-  // Full-time therapists at this location (exclude Equine and Directors — they have their own structures)
+  // Therapists at this location (exclude Equine and Directors — they have their own structures)
   const staff = THERAPISTS.filter(
-    (t) => !t.isClinicalDirector && t.isFullTime && t.role !== "Equine" && t.role !== "Director" && t.workLocations.includes(location) && t.hireDate
+    (t) => !t.isClinicalDirector && t.role !== "Equine" && t.role !== "Director" && t.workLocations.includes(location) && t.hireDate
   );
 
   return staff.map((t) => {
