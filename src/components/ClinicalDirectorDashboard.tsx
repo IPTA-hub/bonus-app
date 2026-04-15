@@ -225,7 +225,7 @@ function calculateRetentionData(
 ): RetentionEntry[] {
   // Therapists at this location (exclude Equine and Directors — they have their own structures)
   const staff = THERAPISTS.filter(
-    (t) => !t.isClinicalDirector && t.role !== "Equine" && t.role !== "Director" && t.workLocations.includes(location) && t.hireDate
+    (t) => !t.isClinicalDirector && t.role !== "Equine" && t.role !== "Director" && t.role !== "SLP" && t.workLocations.includes(location) && t.hireDate
   );
 
   return staff.map((t) => {
