@@ -9,16 +9,15 @@ export interface BonusTier {
 // ============================================================
 
 export const ARRIVAL_TIERS: BonusTier[] = [
-  { min: 1.0, max: Infinity, label: "100%+" },
-  { min: 0.95, max: 0.9999, label: "95-99.99%" },
-  { min: 0.9, max: 0.9499, label: "90-94.99%" },
-  { min: 0.85, max: 0.8999, label: "85-89.99%" },
+  { min: 0.941, max: Infinity, label: "94.1%+" },
+  { min: 0.921, max: 0.9409, label: "92.1-94%" },
+  { min: 0.9, max: 0.9209, label: "90-92%" },
 ];
 
 // Hours-based bonus schedules
-const FULL_TIME_AMOUNTS = [100, 75, 50, 25];
-const PT_75_AMOUNTS = [75, 56, 37, 19];
-const PT_50_AMOUNTS = [50, 37, 25, 13];
+const FULL_TIME_AMOUNTS = [100, 75, 50];
+const PT_75_AMOUNTS = [75, 56, 37];
+const PT_50_AMOUNTS = [50, 37, 25];
 
 export type HoursTier = "full" | "pt75" | "pt50";
 
@@ -84,7 +83,7 @@ export function getTierLabel(arrivalRate: number | null): string {
   for (const tier of ARRIVAL_TIERS) {
     if (arrivalRate >= tier.min) return tier.label;
   }
-  return "Below 85%";
+  return "Below 90%";
 }
 
 // Eval bonus
@@ -162,27 +161,23 @@ export function getVolumeTierLabel(tier: VolumeTier): string {
 
 // Team bonus tiers per volume level
 // [arrivalRate min, bonus amount]
+// 94.1%+ top, 92.1-94% mid, 90-92% entry
 const TEAM_BONUS_SMALL: [number, number][] = [
-  [1.0, 100],
-  [0.95, 75],
+  [0.941, 100],
+  [0.921, 75],
   [0.9, 50],
-  [0.85, 25],
 ];
 
 const TEAM_BONUS_MEDIUM: [number, number][] = [
-  [1.0, 110],
-  [0.95, 85],
+  [0.941, 110],
+  [0.921, 85],
   [0.9, 60],
-  [0.85, 35],
-  [0.8, 15],
 ];
 
 const TEAM_BONUS_LARGE: [number, number][] = [
-  [1.0, 120],
-  [0.95, 95],
+  [0.941, 120],
+  [0.921, 95],
   [0.9, 70],
-  [0.85, 45],
-  [0.8, 25],
 ];
 
 function getTeamBonusTiers(volumeTier: VolumeTier): [number, number][] {
@@ -196,11 +191,9 @@ function getTeamBonusTiers(volumeTier: VolumeTier): [number, number][] {
 export function getTeamBonusTiersForDisplay(volumeTier: VolumeTier): { label: string; amount: number }[] {
   const tiers = getTeamBonusTiers(volumeTier);
   return tiers.map(([min, amount]) => {
-    const label = min >= 1.0 ? "100%+" :
-      min >= 0.95 ? "95-99.99%" :
-      min >= 0.9 ? "90-94.99%" :
-      min >= 0.85 ? "85-89.99%" :
-      "80-84.99%";
+    const label = min >= 0.941 ? "94.1%+" :
+      min >= 0.921 ? "92.1-94%" :
+      "90-92%";
     return { label, amount };
   });
 }
@@ -336,40 +329,36 @@ export type PatientArrivalVolumeTier = "small" | "medium" | "large";
 export function getPatientArrivalVolumeTier(totalScheduled: number): PatientArrivalVolumeTier | null {
   if (totalScheduled >= 200) return "large";
   if (totalScheduled >= 150) return "medium";
-  if (totalScheduled >= 100) return "small";
-  return null; // Below minimum of 100
+  if (totalScheduled >= 75) return "small";
+  return null; // Below minimum of 75
 }
 
 export function getPatientArrivalVolumeTierLabel(tier: PatientArrivalVolumeTier): string {
   switch (tier) {
-    case "small": return "100-149 scheduled";
+    case "small": return "75-149 scheduled";
     case "medium": return "150-199 scheduled";
     case "large": return "200-250 scheduled";
   }
 }
 
 // Patient Arrivals bonus tiers per volume level
+// 96%+ is top tier, 92.1-96% is mid, 90-92% is entry
 const PA_BONUS_SMALL: [number, number][] = [
-  [1.0, 100],
-  [0.95, 75],
+  [0.941, 100],
+  [0.921, 75],
   [0.9, 50],
-  [0.85, 25],
 ];
 
 const PA_BONUS_MEDIUM: [number, number][] = [
-  [1.0, 110],
-  [0.95, 85],
+  [0.941, 110],
+  [0.921, 85],
   [0.9, 60],
-  [0.85, 35],
-  [0.8, 15],
 ];
 
 const PA_BONUS_LARGE: [number, number][] = [
-  [1.0, 120],
-  [0.95, 95],
+  [0.941, 120],
+  [0.921, 95],
   [0.9, 70],
-  [0.85, 45],
-  [0.8, 25],
 ];
 
 function getPatientArrivalBonusTiers(volumeTier: PatientArrivalVolumeTier): [number, number][] {
@@ -383,11 +372,9 @@ function getPatientArrivalBonusTiers(volumeTier: PatientArrivalVolumeTier): [num
 export function getPatientArrivalTiersForDisplay(volumeTier: PatientArrivalVolumeTier): { label: string; amount: number }[] {
   const tiers = getPatientArrivalBonusTiers(volumeTier);
   return tiers.map(([min, amount]) => {
-    const label = min >= 1.0 ? "100%+" :
-      min >= 0.95 ? "95-99.99%" :
-      min >= 0.9 ? "90-94.99%" :
-      min >= 0.85 ? "85-89.99%" :
-      "80-84.99%";
+    const label = min >= 0.941 ? "94.1%+" :
+      min >= 0.921 ? "92.1-94%" :
+      "90-92%";
     return { label, amount };
   });
 }
