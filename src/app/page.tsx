@@ -80,21 +80,17 @@ export default function Home() {
 
         <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
           <h3 className="font-semibold text-gray-900 mb-3">Bonus Tiers (Full-Time)</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="text-center p-3 bg-amber-50 rounded-lg">
-              <p className="text-sm text-amber-700">85-89.99%</p>
-              <p className="text-xl font-bold text-amber-800">$25</p>
-            </div>
+          <div className="grid grid-cols-3 gap-3">
             <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">90-94.99%</p>
+              <p className="text-sm text-blue-700">90–92%</p>
               <p className="text-xl font-bold text-blue-800">$50</p>
             </div>
             <div className="text-center p-3 bg-green-50 rounded-lg">
-              <p className="text-sm text-green-700">95-99.99%</p>
+              <p className="text-sm text-green-700">92.1–94%</p>
               <p className="text-xl font-bold text-green-800">$75</p>
             </div>
             <div className="text-center p-3 bg-emerald-50 rounded-lg">
-              <p className="text-sm text-emerald-700">100%+</p>
+              <p className="text-sm text-emerald-700">94%+</p>
               <p className="text-xl font-bold text-emerald-800">$100</p>
             </div>
           </div>
