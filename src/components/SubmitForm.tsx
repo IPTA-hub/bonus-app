@@ -600,8 +600,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                 </p>
               )}
 
-              {/* Eval tracking for OTR and SLP */}
-              {(therapist.role === "OTR" || therapist.role === "SLP") && (
+              {/* Eval tracking for OTR and SLP (not Clinical Directors) */}
+              {(therapist.role === "OTR" || therapist.role === "SLP") && !therapist.isClinicalDirector && (
                 <div className="border-t border-gray-200 pt-4 mt-2">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">
                     Evaluations

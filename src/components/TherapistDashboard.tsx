@@ -525,7 +525,7 @@ export default function TherapistDashboard({
 
                 // Compute bonus total (same logic as table)
                 const bonusTotal = (() => {
-                  let total = Number(row.bonus_amount) + Number(row.eval_bonus || 0) + Number(row.recruitment_bonus || 0);
+                  let total = Number(row.bonus_amount) + (therapist.isClinicalDirector || isDirector ? 0 : Number(row.eval_bonus || 0)) + Number(row.recruitment_bonus || 0);
                   if (isDirector && !row.is_pto) {
                     const compRate = getCompanyRateForWeek(row.week_start);
                     if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
@@ -1080,7 +1080,7 @@ export default function TherapistDashboard({
                         })()}
                         <td className="px-6 py-3 font-medium">
                           {(() => {
-                            let total = Number(row.bonus_amount) + Number(row.eval_bonus || 0) + Number(row.recruitment_bonus || 0);
+                            let total = Number(row.bonus_amount) + (therapist.isClinicalDirector || isDirector ? 0 : Number(row.eval_bonus || 0)) + Number(row.recruitment_bonus || 0);
                             if (isDirector && !row.is_pto) {
                               const compRate = getCompanyRateForWeek(row.week_start);
                               if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
