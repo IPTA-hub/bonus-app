@@ -11,6 +11,7 @@ export default auth((req) => {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/seed") ||
     pathname.startsWith("/api/users/seed") ||
+    pathname.startsWith("/api/admin/migrate") ||
     pathname.startsWith("/api/reminders") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico"

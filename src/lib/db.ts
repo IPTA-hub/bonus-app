@@ -87,6 +87,19 @@ export async function createUser(data: {
   `;
 }
 
+export async function updateUserByUsername(username: string, updates: { therapist_slug?: string | null; role?: string; name?: string }) {
+  const sql = getDb();
+  if (updates.therapist_slug !== undefined && updates.role !== undefined && updates.name !== undefined) {
+    await sql`UPDATE users SET therapist_slug = ${updates.therapist_slug}, role = ${updates.role}, name = ${updates.name} WHERE username = ${username.toLowerCase()}`;
+  } else if (updates.therapist_slug !== undefined && updates.role !== undefined) {
+    await sql`UPDATE users SET therapist_slug = ${updates.therapist_slug}, role = ${updates.role} WHERE username = ${username.toLowerCase()}`;
+  } else if (updates.therapist_slug !== undefined) {
+    await sql`UPDATE users SET therapist_slug = ${updates.therapist_slug} WHERE username = ${username.toLowerCase()}`;
+  } else if (updates.role !== undefined) {
+    await sql`UPDATE users SET role = ${updates.role} WHERE username = ${username.toLowerCase()}`;
+  }
+}
+
 export async function getAllUsers(): Promise<User[]> {
   const sql = getDb();
   const rows = await sql`SELECT id, username, therapist_slug, role, name, created_at FROM users ORDER BY name`;
