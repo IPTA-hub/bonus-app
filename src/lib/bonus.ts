@@ -9,8 +9,8 @@ export interface BonusTier {
 // ============================================================
 
 export const ARRIVAL_TIERS: BonusTier[] = [
-  { min: 0.941, max: Infinity, label: "94.1%+" },
-  { min: 0.921, max: 0.9409, label: "92.1-94%" },
+  { min: 0.94, max: Infinity, label: "94%+" },
+  { min: 0.921, max: 0.9399, label: "92.1-94%" },
   { min: 0.9, max: 0.9209, label: "90-92%" },
 ];
 
