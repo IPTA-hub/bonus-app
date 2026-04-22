@@ -97,8 +97,16 @@ export const THERAPISTS: Therapist[] = [
     workLocations: ["Greeley", "Farm", "Windsor"],
   }),
 
-  // --- Owner (visit tracking only, no bonus) ---
+  // --- Tracking only (no bonus structure) ---
   makeTherapist("Taneal Behm", "OTR", 40, 0, {
+    noBonus: true,
+    workLocations: ["Greeley", "Windsor", "Farm"],
+  }),
+  makeTherapist("Abby Nothem", "SLP", 20, 0, {
+    noBonus: true,
+    workLocations: ["Greeley", "Windsor", "Farm"],
+  }),
+  makeTherapist("Malia Eyler", "SLP", 20, 0, {
     noBonus: true,
     workLocations: ["Greeley", "Windsor", "Farm"],
   }),

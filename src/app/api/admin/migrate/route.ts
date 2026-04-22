@@ -37,6 +37,30 @@ export async function GET(request: NextRequest) {
     });
     results.push("✓ taneal.behm account created/updated (admin role)");
 
+    // 3a. Create Abby Nothem — tracking only, no bonus
+    const abbyPassword = "Abby2026";
+    const abbyHash = await hash(abbyPassword, 12);
+    await createUser({
+      username: "abby.nothem",
+      password_hash: abbyHash,
+      therapist_slug: "abby-nothem",
+      role: "therapist",
+      name: "Abby Nothem",
+    });
+    results.push("✓ abby.nothem account created/updated");
+
+    // 3b. Create Malia Eyler — tracking only, no bonus
+    const maliaPassword = "Malia2026";
+    const maliaHash = await hash(maliaPassword, 12);
+    await createUser({
+      username: "malia.eyler",
+      password_hash: maliaHash,
+      therapist_slug: "malia-eyler",
+      role: "therapist",
+      name: "Malia Eyler",
+    });
+    results.push("✓ malia.eyler account created/updated");
+
     // 3. Ensure director-level staff have director role
     for (const username of DIRECTOR_USERNAMES) {
       await updateUserByUsername(username, { role: "director" });
@@ -46,7 +70,7 @@ export async function GET(request: NextRequest) {
     // 4. Show current state
     const users = await getAllUsers();
     const relevant = users.filter((u) =>
-      ["admin", "taneal.behm", ...DIRECTOR_USERNAMES].includes(u.username)
+      ["admin", "taneal.behm", "abby.nothem", "malia.eyler", ...DIRECTOR_USERNAMES].includes(u.username)
     );
 
     return NextResponse.json({
