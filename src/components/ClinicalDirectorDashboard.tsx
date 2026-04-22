@@ -291,7 +291,7 @@ export default function ClinicalDirectorDashboard() {
         const totalSeen = nonPto.reduce((a, s) => a + s.seen, 0);
         const avgRate = totalSched > 0 ? totalSeen / totalSched : null;
         const individualBonusTotal = subs.reduce((a, s) => a + (Number(s.bonus_amount) || 0), 0);
-        const evalBonusTotal = subs.reduce((a, s) => a + (Number(s.eval_bonus) || 0), 0);
+        // evalBonusTotal removed — eval bonus is not part of CD bonus structure
 
         // Team data
         const isSLPDirector = dir.directorLocation === "SLP";
@@ -321,7 +321,7 @@ export default function ClinicalDirectorDashboard() {
           <div key={dir.slug} className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Director Header */}
             {(() => {
-              const grandTotal = individualBonusTotal + evalBonusTotal + teamBonusTotal;
+              const grandTotal = individualBonusTotal + teamBonusTotal;
               const cappedTotal = Math.min(grandTotal, CD_ANNUAL_CAP);
               const isNearCap = grandTotal >= CD_ANNUAL_CAP * 0.8;
               const isAtCap = grandTotal >= CD_ANNUAL_CAP;
@@ -377,10 +377,6 @@ export default function ClinicalDirectorDashboard() {
                   <div className="bg-gray-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-500">Individual Bonus</p>
                     <p className="text-xl font-bold text-green-600">${individualBonusTotal.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-500">Eval Bonus</p>
-                    <p className="text-xl font-bold text-green-600">${evalBonusTotal.toFixed(2)}</p>
                   </div>
                 </div>
 
