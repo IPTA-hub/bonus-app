@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (!pto && sched > 0) {
       arrivalRate = getArrivalRate(sched, seenCount, avail);
-      if (arrivalRate !== null) {
+      if (arrivalRate !== null && !therapist.noBonus) {
         if (therapist.role === "Director") {
           // Nicole Summerson — individual productivity bonus (Bonus 3)
           bonusAmount = calculateNicoleIndividualBonus(arrivalRate, seenCount);

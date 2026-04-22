@@ -75,6 +75,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const isEquineDirector = isEquine && !!therapist.directorLocation;
   const isEquineStaff = isEquine && !therapist.directorLocation;
   const isMarketing = therapist.role === "Marketing";
+  const isNoBonus = !!therapist.noBonus;
   const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
   const hidePatientTracking = isPCC || isPCCAssistant || isEquine || isMarketing;
 
@@ -1007,76 +1008,80 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           </h3>
           {result.arrival_rate !== null ? (
             <div className="space-y-2">
-              {result.utilization_rate !== null && (
-                <div>
-                  <p className="text-green-800">
-                    Schedule Utilization:{" "}
-                    <span className="font-bold text-xl">
-                      {(result.utilization_rate * 100).toFixed(1)}%
-                    </span>
-                  </p>
-                  {result.utilization_rate < UTILIZATION_THRESHOLD && (
-                    <p className="text-amber-700 text-sm mt-1">
-                      Must reach {(UTILIZATION_THRESHOLD * 100).toFixed(0)}% utilization to qualify for bonus
-                    </p>
-                  )}
-                </div>
-              )}
               <p className="text-green-800">
                 Arrival Rate:{" "}
                 <span className="font-bold text-xl">
                   {(result.arrival_rate * 100).toFixed(1)}%
                 </span>
               </p>
-              <p className="text-green-800">
-                Arrival Bonus:{" "}
-                <span className="font-bold text-xl">
-                  ${result.bonus_amount.toFixed(2)}
-                </span>
-              </p>
-              {result.eval_bonus > 0 && (
-                <p className="text-green-800">
-                  Eval Bonus:{" "}
-                  <span className="font-bold text-xl">
-                    ${result.eval_bonus.toFixed(2)}
-                  </span>
-                </p>
+              {!isNoBonus && (
+                <>
+                  {result.utilization_rate !== null && (
+                    <div>
+                      <p className="text-green-800">
+                        Schedule Utilization:{" "}
+                        <span className="font-bold text-xl">
+                          {(result.utilization_rate * 100).toFixed(1)}%
+                        </span>
+                      </p>
+                      {result.utilization_rate < UTILIZATION_THRESHOLD && (
+                        <p className="text-amber-700 text-sm mt-1">
+                          Must reach {(UTILIZATION_THRESHOLD * 100).toFixed(0)}% utilization to qualify for bonus
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-green-800">
+                    Arrival Bonus:{" "}
+                    <span className="font-bold text-xl">
+                      ${result.bonus_amount.toFixed(2)}
+                    </span>
+                  </p>
+                  {result.eval_bonus > 0 && (
+                    <p className="text-green-800">
+                      Eval Bonus:{" "}
+                      <span className="font-bold text-xl">
+                        ${result.eval_bonus.toFixed(2)}
+                      </span>
+                    </p>
+                  )}
+                  {(result.recruitment_bonus || 0) > 0 && (
+                    <p className="text-green-800">
+                      Recruitment Bonus:{" "}
+                      <span className="font-bold text-xl">
+                        ${(result.recruitment_bonus || 0).toFixed(2)}
+                      </span>
+                      <span className="text-sm ml-2">
+                        ({result.recruitment_hires || 0} hire{(result.recruitment_hires || 0) !== 1 ? "s" : ""}, {result.recruitment_events || 0} event{(result.recruitment_events || 0) !== 1 ? "s" : ""})
+                      </span>
+                    </p>
+                  )}
+                  {isDirector && (
+                    <p className="text-ipta-teal text-sm mt-1">
+                      Company productivity bonus calculated on your dashboard
+                    </p>
+                  )}
+                  {isPCC && (
+                    <p className="text-ipta-teal text-sm mt-1">
+                      Patient Arrivals bonus calculated on your dashboard
+                    </p>
+                  )}
+                  {isEquineDirector && (
+                    <p className="text-ipta-teal text-sm mt-1">
+                      Patient Arrivals bonus calculated on your dashboard
+                    </p>
+                  )}
+                  <p className="text-green-800 border-t border-green-200 pt-2 mt-2">
+                    Total Weekly Bonus:{" "}
+                    <span className="font-bold text-xl">
+                      ${(result.bonus_amount + (result.eval_bonus || 0) + (result.recruitment_bonus || 0)).toFixed(2)}
+                    </span>
+                    {isDirector && <span className="text-sm ml-1">(+ company bonus)</span>}
+                    {isPCC && <span className="text-sm ml-1">(+ patient arrivals)</span>}
+                    {isEquineDirector && <span className="text-sm ml-1">(+ patient arrivals)</span>}
+                  </p>
+                </>
               )}
-              {(result.recruitment_bonus || 0) > 0 && (
-                <p className="text-green-800">
-                  Recruitment Bonus:{" "}
-                  <span className="font-bold text-xl">
-                    ${(result.recruitment_bonus || 0).toFixed(2)}
-                  </span>
-                  <span className="text-sm ml-2">
-                    ({result.recruitment_hires || 0} hire{(result.recruitment_hires || 0) !== 1 ? "s" : ""}, {result.recruitment_events || 0} event{(result.recruitment_events || 0) !== 1 ? "s" : ""})
-                  </span>
-                </p>
-              )}
-              {isDirector && (
-                <p className="text-ipta-teal text-sm mt-1">
-                  Company productivity bonus calculated on your dashboard
-                </p>
-              )}
-              {isPCC && (
-                <p className="text-ipta-teal text-sm mt-1">
-                  Patient Arrivals bonus calculated on your dashboard
-                </p>
-              )}
-              {isEquineDirector && (
-                <p className="text-ipta-teal text-sm mt-1">
-                  Patient Arrivals bonus calculated on your dashboard
-                </p>
-              )}
-              <p className="text-green-800 border-t border-green-200 pt-2 mt-2">
-                Total Weekly Bonus:{" "}
-                <span className="font-bold text-xl">
-                  ${(result.bonus_amount + (result.eval_bonus || 0) + (result.recruitment_bonus || 0)).toFixed(2)}
-                </span>
-                {isDirector && <span className="text-sm ml-1">(+ company bonus)</span>}
-                {isPCC && <span className="text-sm ml-1">(+ patient arrivals)</span>}
-                {isEquineDirector && <span className="text-sm ml-1">(+ patient arrivals)</span>}
-              </p>
             </div>
           ) : (
             <p className="text-green-800">PTO/Holiday week recorded.</p>
@@ -1084,7 +1089,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         </div>
       )}
 
-      <div className="bg-gray-50 rounded-xl p-4 mb-6">
+      {!isNoBonus && <div className="bg-gray-50 rounded-xl p-4 mb-6">
         {therapist.isClinicalDirector ? (
           <>
             <h3 className="text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">
@@ -1394,7 +1399,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             )}
           </>
         )}
-      </div>
+      </div>}
 
       {/* Submission History with Edit/Delete */}
       {!loadingHistory && history.length > 0 && (

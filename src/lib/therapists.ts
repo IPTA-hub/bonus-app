@@ -11,6 +11,7 @@ export interface Therapist {
   hireDate?: string; // ISO date string
   workLocations: string[]; // typical work locations
   email?: string; // for reminder emails
+  noBonus?: boolean; // tracks visits but has no bonus structure
 }
 
 const FT_HOURS = 32;
@@ -27,6 +28,7 @@ function makeTherapist(
     hireDate?: string;
     workLocations?: string[];
     email?: string;
+    noBonus?: boolean;
   }
 ): Therapist {
   const isFullTime = hours >= FT_HOURS;
@@ -43,6 +45,7 @@ function makeTherapist(
     hireDate: opts?.hireDate,
     workLocations: opts?.workLocations || [],
     email: opts?.email,
+    noBonus: opts?.noBonus || false,
   };
 }
 
@@ -92,6 +95,12 @@ export const THERAPISTS: Therapist[] = [
     directorLocation: "SLP",
     hireDate: "2025-09-19",
     workLocations: ["Greeley", "Farm", "Windsor"],
+  }),
+
+  // --- Owner (visit tracking only, no bonus) ---
+  makeTherapist("Taneal Behm", "OTR", 40, 0, {
+    noBonus: true,
+    workLocations: ["Greeley", "Windsor", "Farm"],
   }),
 
   // --- Directors (non-clinical) ---
@@ -148,7 +157,7 @@ export function getClinicalDirectors(): Therapist[] {
 }
 
 export function getRegularTherapists(): Therapist[] {
-  return THERAPISTS.filter((t) => !t.isClinicalDirector && t.role !== "Director" && t.role !== "PCC" && t.role !== "PCC-Asst" && t.role !== "Equine");
+  return THERAPISTS.filter((t) => !t.isClinicalDirector && !t.noBonus && t.role !== "Director" && t.role !== "PCC" && t.role !== "PCC-Asst" && t.role !== "Equine" && t.role !== "Marketing");
 }
 
 export function getPCCStaff(): Therapist[] {
