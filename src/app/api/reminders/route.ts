@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const fromEmail = process.env.REMINDER_FROM_EMAIL || "reminders@updates.nocopediatricot.com";
+    const fromEmail = process.env.REMINDER_FROM_EMAIL || "reminders@integratedpeds.com";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : "https://bonus-app-taneal-1214s-projects.vercel.app";
