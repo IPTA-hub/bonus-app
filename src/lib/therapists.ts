@@ -51,25 +51,25 @@ function makeTherapist(
 
 export const THERAPISTS: Therapist[] = [
   // --- Regular therapists ---
-  makeTherapist("Kiana Atencio", "OTR", 40, 42, { hireDate: "2025-11-05", workLocations: ["Greeley"] }),
-  makeTherapist("Haidyn Stahl", "OTR", 40, 42, { hireDate: "2026-02-16", workLocations: ["Greeley"] }),
-  makeTherapist("Kelly Trent", "OTR", 40, 42, { hireDate: "2026-03-30", workLocations: ["Greeley", "Farm"] }),
-  makeTherapist("Hallie Sheridan", "OTR", 40, 42, { hireDate: "2026-03-30", workLocations: ["Windsor"] }),
-  makeTherapist("Sophie Supernor", "OTR", 40, 42, { hireDate: "2026-01-28", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Andrea Gurga", "OTR", 40, 35, { hireDate: "2022-07-20", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Erin Kelly", "OTR", 40, 37, { hireDate: "2022-05-01", workLocations: ["Greeley", "Farm"] }),
-  makeTherapist("Macie Bicandi", "OTR", 39, 37, { hireDate: "2025-03-24", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Gabby Javier", "OTR", 38.25, 39, { hireDate: "2024-10-21", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Lindsey Messenger", "OTR", 36, 29, { hireDate: "2021-01-25", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Jessica Nieves", "COTA", 34.5, 36, { hireDate: "2024-08-26", workLocations: ["Windsor"] }),
-  makeTherapist("Jenna Maserang", "COTA", 30, 32, { hireDate: "2024-02-13", workLocations: ["Greeley"] }),
-  makeTherapist("Carolee Jaynes", "OTR", 26, 22, { hireDate: "2024-06-03", workLocations: ["Farm"] }),
-  makeTherapist("Jackie Browne", "OTR", 25.5, 23, { hireDate: "2025-03-13", workLocations: ["Greeley", "Farm"] }),
-  makeTherapist("Nicole Richards", "OTR", 25, 21, { hireDate: "2020-06-08", workLocations: ["Windsor"] }),
-  makeTherapist("Hannah Rosenbach", "SLP", 16, 19, { hireDate: "2026-03-30", workLocations: ["Greeley"] }),
-  makeTherapist("April Monroe", "COTA", 15, 16, { hireDate: "2024-01-12", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Stephanie French", "OTR", 15, 15, { hireDate: "2023-11-06", workLocations: ["Windsor", "Farm"] }),
-  makeTherapist("Carly Huyber", "OTR", 15, 16, { hireDate: "2026-01-22", workLocations: ["Windsor", "Farm"] }),
+  makeTherapist("Kiana Atencio", "OTR", 40, 42, { hireDate: "2025-11-05", workLocations: ["Greeley"], email: "kianaa@integratedpeds.com" }),
+  makeTherapist("Haidyn Stahl", "OTR", 40, 42, { hireDate: "2026-02-16", workLocations: ["Greeley"], email: "haidyns@integratedpeds.com" }),
+  makeTherapist("Kelly Trent", "OTR", 40, 42, { hireDate: "2026-03-30", workLocations: ["Greeley", "Farm"], email: "kellyt@integratedpeds.com" }),
+  makeTherapist("Hallie Sheridan", "OTR", 40, 42, { hireDate: "2026-03-30", workLocations: ["Windsor"], email: "hallies@integratedpeds.com" }),
+  makeTherapist("Sophie Supernor", "OTR", 40, 42, { hireDate: "2026-01-28", workLocations: ["Windsor", "Farm"], email: "sophies@integratedpeds.com" }),
+  makeTherapist("Andrea Gurga", "OTR", 40, 35, { hireDate: "2022-07-20", workLocations: ["Windsor", "Farm"], email: "andreag@integratedpeds.com" }),
+  makeTherapist("Erin Kelly", "OTR", 40, 37, { hireDate: "2022-05-01", workLocations: ["Greeley", "Farm"], email: "erink@integratedpeds.com" }),
+  makeTherapist("Macie Bicandi", "OTR", 39, 37, { hireDate: "2025-03-24", workLocations: ["Windsor", "Farm"], email: "macieb@integratedpeds.com" }),
+  makeTherapist("Gabby Javier", "OTR", 38.25, 39, { hireDate: "2024-10-21", workLocations: ["Windsor", "Farm"], email: "gabbyj@integratedpeds.com" }),
+  makeTherapist("Lindsey Messenger", "OTR", 36, 29, { hireDate: "2021-01-25", workLocations: ["Windsor", "Farm"], email: "lindseym@integratedpeds.com" }),
+  makeTherapist("Jessica Nieves", "COTA", 34.5, 36, { hireDate: "2024-08-26", workLocations: ["Windsor"], email: "jessican@integratedpeds.com" }),
+  makeTherapist("Jenna Maserang", "COTA", 30, 32, { hireDate: "2024-02-13", workLocations: ["Greeley"], email: "jennam@integratedpeds.com" }),
+  makeTherapist("Carolee Jaynes", "OTR", 26, 22, { hireDate: "2024-06-03", workLocations: ["Farm"], email: "caroleej@integratedpeds.com" }),
+  makeTherapist("Jackie Browne", "OTR", 25.5, 23, { hireDate: "2025-03-13", workLocations: ["Greeley", "Farm"], email: "jacquelineb@integratedpeds.com" }),
+  makeTherapist("Nicole Richards", "OTR", 25, 21, { hireDate: "2020-06-08", workLocations: ["Windsor"], email: "nicoler@integratedpeds.com" }),
+  makeTherapist("Hannah Rosenbach", "SLP", 16, 19, { hireDate: "2026-03-30", workLocations: ["Greeley"], email: "hannahr@integratedpeds.com" }),
+  makeTherapist("April Monroe", "COTA", 15, 16, { hireDate: "2024-01-12", workLocations: ["Windsor", "Farm"], email: "aprilm@integratedpeds.com" }),
+  makeTherapist("Stephanie French", "OTR", 15, 15, { hireDate: "2023-11-06", workLocations: ["Windsor", "Farm"], email: "stephanief@integratedpeds.com" }),
+  makeTherapist("Carly Huyber", "OTR", 15, 16, { hireDate: "2026-01-22", workLocations: ["Windsor", "Farm"], email: "carlyh@integratedpeds.com" }),
 
   // --- Clinical Directors ---
   makeTherapist("Kristina Ihrig", "OTR", 40, 18, {
@@ -77,82 +77,98 @@ export const THERAPISTS: Therapist[] = [
     directorLocation: "Greeley",
     hireDate: "2021-08-09",
     workLocations: ["Greeley"],
+    email: "kristinai@integratedpeds.com",
   }),
   makeTherapist("Katie Kiblen", "OTR", 34, 8, {
     isClinicalDirector: true,
     directorLocation: "Windsor",
     hireDate: "2019-10-14",
     workLocations: ["Windsor", "Farm"],
+    email: "katiek@integratedpeds.com",
   }),
   makeTherapist("Stephanie Voorhes", "COTA", 37, 5, {
     isClinicalDirector: true,
     directorLocation: "Farm",
     hireDate: "2017-08-15",
     workLocations: ["Farm"],
+    email: "stephaniev@integratedpeds.com",
   }),
   makeTherapist("Amy Mulligan", "SLP", 40, 20, {
     isClinicalDirector: true,
     directorLocation: "SLP",
     hireDate: "2025-09-19",
     workLocations: ["Greeley", "Farm", "Windsor"],
+    email: "amym@integratedpeds.com",
   }),
 
   // --- Tracking only (no bonus structure) ---
   makeTherapist("Taneal Behm", "OTR", 40, 0, {
     noBonus: true,
     workLocations: ["Greeley", "Windsor", "Farm"],
+    email: "tanealb@integratedpeds.com",
   }),
   makeTherapist("Abby Nothem", "SLP", 20, 0, {
     noBonus: true,
     workLocations: ["Greeley", "Windsor", "Farm"],
+    email: "abbyn@integratedpeds.com",
   }),
   makeTherapist("Malia Eyler", "SLP", 20, 0, {
     noBonus: true,
     workLocations: ["Greeley", "Windsor", "Farm"],
+    email: "malia@integratedpeds.com",
   }),
 
   // --- Directors (non-clinical) ---
   makeTherapist("Lexie McConnaughey", "Marketing", 40, 0, {
     isClinicalDirector: false,
     workLocations: ["Greeley", "Farm", "Windsor"],
+    email: "lexiem@integratedpeds.com",
   }),
   makeTherapist("Nicole Summerson", "Director", 40, 0, {
     isClinicalDirector: false,
     hireDate: "2018-10-11",
     workLocations: ["Greeley", "Farm", "Windsor"],
+    email: "nicoles@integratedpeds.com",
   }),
 
   // --- Patient Care Coordinators ---
   makeTherapist("Corina Ceballos", "PCC", 40, 0, {
     directorLocation: "Greeley",
     workLocations: ["Greeley"],
+    email: "corinac@integratedpeds.com",
   }),
   makeTherapist("Kenzie Overy", "PCC", 40, 0, {
     directorLocation: "Windsor",
     workLocations: ["Windsor"],
+    email: "kenzieo@integratedpeds.com",
   }),
 
   // --- PCC Assistants ---
   makeTherapist("Perla Gomez", "PCC-Asst", 40, 0, {
     workLocations: ["Greeley"],
+    email: "perlag@integratedpeds.com",
   }),
 
   // --- Equine Team ---
   makeTherapist("Marley Higgins", "Equine", 40, 0, {
     directorLocation: "Farm",
     workLocations: ["Farm"],
+    email: "marleyh@integratedpeds.com",
   }),
   makeTherapist("Katie Pederson", "Equine", 40, 0, {
     hireDate: "2025-04-14",
     workLocations: ["Farm"],
+    email: "barnmanager@integratedpeds.com",
   }),
   makeTherapist("Savannah Ross", "Equine", 40, 0, {
     hireDate: "2024-10-07",
     workLocations: ["Farm"],
+    email: "savannahr@integratedpeds.com",
   }),
   makeTherapist("Dillen Edwards", "Equine", 40, 0, {
     hireDate: "2025-09-22",
     workLocations: ["Farm"],
+    email: "dillene@integratedpeds.com",
   }),
 ];
 
