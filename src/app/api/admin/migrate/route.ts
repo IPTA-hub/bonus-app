@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { createUser, updateUserByUsername, getAllUsers } from "@/lib/db";
+import { createUser, createUserIfNotExists, updateUserByUsername, getAllUsers } from "@/lib/db";
+import { THERAPISTS, getDirectors } from "@/lib/therapists";
 
-// Staff who should have director-level access (can see full admin dashboard)
 const DIRECTOR_USERNAMES = [
   "marley.higgins",
   "stephanie.voorhes",
@@ -12,6 +12,11 @@ const DIRECTOR_USERNAMES = [
   "nicole.summerson",
 ];
 
+function toUsername(name: string): string {
+  const parts = name.toLowerCase().trim().split(/\s+/);
+  return parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const secret = request.nextUrl.searchParams.get("secret");
@@ -20,14 +25,14 @@ export async function GET(request: NextRequest) {
     }
 
     const results: string[] = [];
+    const directorSlugs = new Set(getDirectors().map((d) => d.slug));
 
-    // 1. Link admin account to Taneal Behm
+    // 1. Link admin account to Taneal Behm (always update)
     await updateUserByUsername("admin", { therapist_slug: "taneal-behm", name: "Taneal Behm" });
     results.push("✓ Admin account linked to taneal-behm");
 
-    // 2. Ensure Taneal also has her own named account (optional fallback login)
-    const tanealPassword = "Taneal2026!";
-    const tanealHash = await hash(tanealPassword, 12);
+    // 2. Taneal named account (always update)
+    const tanealHash = await hash("Taneal2026!", 12);
     await createUser({
       username: "taneal.behm",
       password_hash: tanealHash,
@@ -35,48 +40,41 @@ export async function GET(request: NextRequest) {
       role: "admin",
       name: "Taneal Behm",
     });
-    results.push("✓ taneal.behm account created/updated (admin role)");
+    results.push("✓ taneal.behm account ensured (admin role)");
 
-    // 3a. Create Abby Nothem — tracking only, no bonus
-    const abbyPassword = "Abby2026";
-    const abbyHash = await hash(abbyPassword, 12);
-    await createUser({
-      username: "abby.nothem",
-      password_hash: abbyHash,
-      therapist_slug: "abby-nothem",
-      role: "therapist",
-      name: "Abby Nothem",
-    });
-    results.push("✓ abby.nothem account created/updated");
+    // 3. Create missing accounts for ALL staff (never overwrites existing passwords)
+    let created = 0;
+    for (const t of THERAPISTS) {
+      if (t.slug === "taneal-behm") continue; // handled above
+      const username = toUsername(t.name);
+      const defaultPassword = `${t.name.split(" ")[0]}2026`;
+      const passwordHash = await hash(defaultPassword, 12);
+      const role = directorSlugs.has(t.slug) ? "director" : "therapist";
+      await createUserIfNotExists({
+        username,
+        password_hash: passwordHash,
+        therapist_slug: t.slug,
+        role,
+        name: t.name,
+      });
+      created++;
+    }
+    results.push(`✓ Checked/created accounts for ${created} staff members (existing passwords unchanged)`);
 
-    // 3b. Create Malia Eyler — tracking only, no bonus
-    const maliaPassword = "Malia2026";
-    const maliaHash = await hash(maliaPassword, 12);
-    await createUser({
-      username: "malia.eyler",
-      password_hash: maliaHash,
-      therapist_slug: "malia-eyler",
-      role: "therapist",
-      name: "Malia Eyler",
-    });
-    results.push("✓ malia.eyler account created/updated");
-
-    // 3. Ensure director-level staff have director role
+    // 4. Ensure director-level staff have correct role (always update role)
     for (const username of DIRECTOR_USERNAMES) {
       await updateUserByUsername(username, { role: "director" });
       results.push(`✓ ${username} → director role`);
     }
 
-    // 4. Show current state
+    // 5. Show all accounts
     const users = await getAllUsers();
-    const relevant = users.filter((u) =>
-      ["admin", "taneal.behm", "abby.nothem", "malia.eyler", ...DIRECTOR_USERNAMES].includes(u.username)
-    );
 
     return NextResponse.json({
       success: true,
       changes: results,
-      currentState: relevant.map((u) => ({
+      total_accounts: users.length,
+      accounts: users.map((u) => ({
         username: u.username,
         name: u.name,
         role: u.role,

@@ -125,6 +125,22 @@ export async function markTokenUsed(token: string) {
   await sql`UPDATE password_reset_tokens SET used = TRUE WHERE token = ${token}`;
 }
 
+// Creates account only if username doesn't exist yet — never overwrites existing passwords
+export async function createUserIfNotExists(data: {
+  username: string;
+  password_hash: string;
+  therapist_slug: string | null;
+  role: string;
+  name: string;
+}) {
+  const sql = getDb();
+  await sql`
+    INSERT INTO users (username, password_hash, therapist_slug, role, name)
+    VALUES (${data.username.toLowerCase()}, ${data.password_hash}, ${data.therapist_slug}, ${data.role}, ${data.name})
+    ON CONFLICT (username) DO NOTHING
+  `;
+}
+
 export async function updateUserByUsername(username: string, updates: { therapist_slug?: string | null; role?: string; name?: string }) {
   const sql = getDb();
   if (updates.therapist_slug !== undefined && updates.role !== undefined && updates.name !== undefined) {
