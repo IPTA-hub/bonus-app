@@ -8,6 +8,8 @@ export default auth((req) => {
   // Public routes - no auth required
   if (
     pathname === "/login" ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/reset-password") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/seed") ||
     pathname.startsWith("/api/users/seed") ||

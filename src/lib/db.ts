@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 
-function getDb() {
+export function getDb() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL environment variable is not set");
   return neon(url);
@@ -85,6 +85,44 @@ export async function createUser(data: {
       role = EXCLUDED.role,
       name = EXCLUDED.name
   `;
+}
+
+export async function initPasswordResetTable() {
+  const sql = getDb();
+  await sql`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(100) NOT NULL,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+}
+
+export async function createPasswordResetToken(username: string, token: string) {
+  const sql = getDb();
+  await sql`DELETE FROM password_reset_tokens WHERE username = ${username}`;
+  await sql`
+    INSERT INTO password_reset_tokens (username, token, expires_at)
+    VALUES (${username}, ${token}, NOW() + INTERVAL '1 hour')
+  `;
+}
+
+export async function getPasswordResetToken(token: string) {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM password_reset_tokens
+    WHERE token = ${token} AND used = FALSE AND expires_at > NOW()
+    LIMIT 1
+  `;
+  return rows.length > 0 ? rows[0] : null;
+}
+
+export async function markTokenUsed(token: string) {
+  const sql = getDb();
+  await sql`UPDATE password_reset_tokens SET used = TRUE WHERE token = ${token}`;
 }
 
 export async function updateUserByUsername(username: string, updates: { therapist_slug?: string | null; role?: string; name?: string }) {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 
 function LoginForm() {
   const [username, setUsername] = useState("");
@@ -92,9 +93,14 @@ function LoginForm() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-4">
-          Contact your clinic admin if you need your login credentials.
-        </p>
+        <div className="text-center mt-4 space-y-1">
+          <Link href="/forgot-password" className="block text-sm text-ipta-teal hover:underline font-medium">
+            Forgot your password?
+          </Link>
+          <p className="text-xs text-gray-400">
+            Contact your clinic admin if you need your login credentials.
+          </p>
+        </div>
       </div>
     </div>
   );
