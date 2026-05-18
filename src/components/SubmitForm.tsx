@@ -38,6 +38,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   });
 
   const [isPto, setIsPto] = useState(false);
+  const [ptoCaseloadFull, setPtoCaseloadFull] = useState<"yes" | "no" | "">("");
   const [selectedLocations, setSelectedLocations] = useState<string[]>(therapist.workLocations);
   const [evalsCompleted, setEvalsCompleted] = useState("");
   const [evalsWithDevCodes, setEvalsWithDevCodes] = useState("");
@@ -171,6 +172,10 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     const weekDate = new Date(submission.week_start).toISOString().split("T")[0];
     setWeekStart(weekDate);
     setIsPto(submission.is_pto);
+    setPtoCaseloadFull(
+      submission.pto_caseload_full === true ? "yes" :
+      submission.pto_caseload_full === false ? "no" : ""
+    );
     setNotes(submission.notes || "");
     setEvalsCompleted(String(submission.evals_completed || ""));
     setEvalsWithDevCodes(String(submission.evals_with_dev_codes || ""));
@@ -278,6 +283,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setScheduled("");
     setSeen("");
     setIsPto(false);
+    setPtoCaseloadFull("");
     setSelectedLocations([]);
     setLocationEntries({});
     setEvalsCompleted("");
@@ -348,6 +354,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         therapist_slug: therapist.slug,
         week_start: weekStart,
         is_pto: isPto,
+        pto_caseload_full: isPto ? (ptoCaseloadFull === "yes" ? true : ptoCaseloadFull === "no" ? false : null) : null,
         evals_completed: parseInt(evalsCompleted) || 0,
         evals_with_dev_codes: parseInt(evalsWithDevCodes) || 0,
         locations: selectedLocations.join(","),
@@ -485,13 +492,48 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               type="checkbox"
               id="pto"
               checked={isPto}
-              onChange={(e) => setIsPto(e.target.checked)}
+              onChange={(e) => {
+                setIsPto(e.target.checked);
+                if (!e.target.checked) setPtoCaseloadFull("");
+              }}
               className="w-5 h-5 text-ipta-teal rounded focus:ring-ipta-teal"
             />
             <label htmlFor="pto" className="text-sm font-medium text-gray-700">
               PTO / Holiday Week
             </label>
           </div>
+
+          {isPto && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+              <p className="text-sm font-medium text-amber-900">
+                Is your caseload 90% full or more?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPtoCaseloadFull("yes")}
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold border transition ${
+                    ptoCaseloadFull === "yes"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-green-400"
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPtoCaseloadFull("no")}
+                  className={`px-5 py-2 rounded-lg text-sm font-semibold border transition ${
+                    ptoCaseloadFull === "no"
+                      ? "bg-red-500 text-white border-red-500"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-red-400"
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -512,7 +554,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             </div>
           </div>
 
-          {!isPto && !hidePatientTracking && (
+          {!hidePatientTracking && (
             <>
               {hasLocations ? (
                 /* ---- Per-Location Fields (always shown when locations selected) ---- */
@@ -1103,7 +1145,15 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               )}
             </div>
           ) : (
-            <p className="text-green-800">PTO/Holiday week recorded.</p>
+            <div className="space-y-1">
+              <p className="text-green-800">PTO/Holiday week recorded.</p>
+              {ptoCaseloadFull === "yes" && (
+                <p className="text-green-700 text-sm">Caseload: 90%+ full ✓</p>
+              )}
+              {ptoCaseloadFull === "no" && (
+                <p className="text-amber-700 text-sm">Caseload: under 90% full</p>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1461,9 +1511,21 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                             })}
                           </span>
                           {row.is_pto ? (
-                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                              PTO
-                            </span>
+                            <>
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                                PTO
+                              </span>
+                              {row.pto_caseload_full === true && (
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                  Caseload ≥90%
+                                </span>
+                              )}
+                              {row.pto_caseload_full === false && (
+                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                                  Caseload &lt;90%
+                                </span>
+                              )}
+                            </>
                           ) : (
                             <>
                               {row.arrival_rate !== null && (

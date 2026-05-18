@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data, recruitment_hires, recruitment_events, role_bonus_data: roleBonusInput } = body;
+    const { therapist_slug, week_start, available, scheduled, seen, is_pto, notes, evals_completed, evals_with_dev_codes, locations, location_data, recruitment_hires, recruitment_events, role_bonus_data: roleBonusInput, pto_caseload_full } = body;
 
     if (!therapist_slug || !week_start) {
       return NextResponse.json(
@@ -218,6 +218,14 @@ export async function POST(request: NextRequest) {
       bonusAmount += sponsorshipBonus;
     }
 
+    // pto_caseload_full: true = "yes", false = "no", null = not answered
+    const ptoCaseloadFull: boolean | null =
+      pto_caseload_full === true || pto_caseload_full === "yes"
+        ? true
+        : pto_caseload_full === false || pto_caseload_full === "no"
+        ? false
+        : null;
+
     await upsertSubmission({
       therapist_slug,
       week_start,
@@ -238,6 +246,7 @@ export async function POST(request: NextRequest) {
       recruitment_events: recEvents,
       recruitment_bonus: recruitmentBonus,
       role_bonus_data: roleBonusDataStr,
+      pto_caseload_full: ptoCaseloadFull,
     });
 
     return NextResponse.json({

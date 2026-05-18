@@ -38,6 +38,7 @@ export async function initDb() {
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS recruitment_events INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS recruitment_bonus DECIMAL(8,2) NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS role_bonus_data TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS pto_caseload_full BOOLEAN`;
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -181,6 +182,7 @@ export interface Submission {
   recruitment_events: number;
   recruitment_bonus: number;
   role_bonus_data: string; // JSON for PCC/Equine role-specific data
+  pto_caseload_full: boolean | null; // During PTO: is caseload ≥90% full?
   created_at: string;
 }
 
@@ -256,11 +258,12 @@ export async function upsertSubmission(data: {
   recruitment_events: number;
   recruitment_bonus: number;
   role_bonus_data: string;
+  pto_caseload_full: boolean | null;
 }) {
   const sql = getDb();
   await sql`
-    INSERT INTO submissions (therapist_slug, week_start, available, scheduled, seen, is_pto, notes, arrival_rate, utilization_rate, bonus_amount, evals_completed, evals_with_dev_codes, eval_bonus, locations, location_data, recruitment_hires, recruitment_events, recruitment_bonus, role_bonus_data, updated_at)
-    VALUES (${data.therapist_slug}, ${data.week_start}, ${data.available}, ${data.scheduled}, ${data.seen}, ${data.is_pto}, ${data.notes}, ${data.arrival_rate}, ${data.utilization_rate}, ${data.bonus_amount}, ${data.evals_completed}, ${data.evals_with_dev_codes}, ${data.eval_bonus}, ${data.locations}, ${data.location_data}, ${data.recruitment_hires}, ${data.recruitment_events}, ${data.recruitment_bonus}, ${data.role_bonus_data}, CURRENT_TIMESTAMP)
+    INSERT INTO submissions (therapist_slug, week_start, available, scheduled, seen, is_pto, notes, arrival_rate, utilization_rate, bonus_amount, evals_completed, evals_with_dev_codes, eval_bonus, locations, location_data, recruitment_hires, recruitment_events, recruitment_bonus, role_bonus_data, pto_caseload_full, updated_at)
+    VALUES (${data.therapist_slug}, ${data.week_start}, ${data.available}, ${data.scheduled}, ${data.seen}, ${data.is_pto}, ${data.notes}, ${data.arrival_rate}, ${data.utilization_rate}, ${data.bonus_amount}, ${data.evals_completed}, ${data.evals_with_dev_codes}, ${data.eval_bonus}, ${data.locations}, ${data.location_data}, ${data.recruitment_hires}, ${data.recruitment_events}, ${data.recruitment_bonus}, ${data.role_bonus_data}, ${data.pto_caseload_full}, CURRENT_TIMESTAMP)
     ON CONFLICT (therapist_slug, week_start)
     DO UPDATE SET
       available = EXCLUDED.available,
@@ -280,6 +283,7 @@ export async function upsertSubmission(data: {
       recruitment_events = EXCLUDED.recruitment_events,
       recruitment_bonus = EXCLUDED.recruitment_bonus,
       role_bonus_data = EXCLUDED.role_bonus_data,
+      pto_caseload_full = EXCLUDED.pto_caseload_full,
       updated_at = CURRENT_TIMESTAMP
   `;
 }
