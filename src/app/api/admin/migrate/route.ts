@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { createUser, createUserIfNotExists, updateUserByUsername, getAllUsers } from "@/lib/db";
+import { initDb, createUser, createUserIfNotExists, updateUserByUsername, getAllUsers } from "@/lib/db";
 import { THERAPISTS, getDirectors } from "@/lib/therapists";
 
 const DIRECTOR_USERNAMES = [
@@ -25,6 +25,11 @@ export async function GET(request: NextRequest) {
     }
 
     const results: string[] = [];
+
+    // 0. Run DB schema migrations (adds any missing columns)
+    await initDb();
+    results.push("✓ DB schema up to date");
+
     const directorSlugs = new Set(getDirectors().map((d) => d.slug));
 
     // 1. Link admin account to Taneal Behm (always update)
