@@ -20,7 +20,7 @@ function toUsername(name: string): string {
 export async function GET(request: NextRequest) {
   try {
     const secret = request.nextUrl.searchParams.get("secret");
-    if (secret !== process.env.SEED_SECRET && secret !== process.env.NEXTAUTH_SECRET) {
+    if (secret !== process.env.SEED_SECRET && secret !== process.env.NEXTAUTH_SECRET && secret !== process.env.AUTH_SECRET) {
       return NextResponse.json({ error: "Unauthorized. Pass ?secret=your-secret" }, { status: 401 });
     }
 
