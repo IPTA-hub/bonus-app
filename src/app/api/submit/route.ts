@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSubmission, deleteSubmission } from "@/lib/db";
+import { upsertSubmission, deleteSubmission, initDb } from "@/lib/db";
 import { getTherapistBySlug } from "@/lib/therapists";
 import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus, calculateSponsorshipBonus, SPONSORSHIP_SLUG, MARKETING_SLUG, calculateMarketingReferralBonus, calculateMarketingMeetingBonus, calculateMarketingSponsorshipBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // Ensure all DB columns exist (safe no-op if already present)
+    await initDb();
+
     const session = (await auth()) as SessionWithRole | null;
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
