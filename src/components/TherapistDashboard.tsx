@@ -809,7 +809,7 @@ export default function TherapistDashboard({
                         ) : (
                           <>
                             <a
-                              href={`/submit/${therapist.slug}`}
+                              href={`/submit/${therapist.slug}?edit=${weekDate}`}
                               className="min-h-[44px] flex-1 flex items-center justify-center text-sm font-medium text-ipta-teal bg-ipta-teal-50 rounded-lg hover:bg-ipta-teal-100 transition"
                             >
                               Edit
@@ -1121,7 +1121,7 @@ export default function TherapistDashboard({
                             ) : (
                               <div className="flex items-center gap-1">
                                 <a
-                                  href={`/submit/${therapist.slug}`}
+                                  href={`/submit/${therapist.slug}?edit=${weekDate}`}
                                   className="px-2 py-1 text-xs font-medium text-ipta-teal bg-ipta-teal-50 rounded hover:bg-ipta-teal-100 transition"
                                 >
                                   Edit

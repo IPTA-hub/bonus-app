@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission, MarketingBonusData } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
@@ -118,6 +119,9 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     0
   );
 
+  const searchParams = useSearchParams();
+  const autoEditHandled = useRef(false);
+
   // Load submission history
   useEffect(() => {
     fetch(`/api/data?slug=${therapist.slug}`)
@@ -126,6 +130,21 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
       .catch(() => setHistory([]))
       .finally(() => setLoadingHistory(false));
   }, [therapist.slug, result]);
+
+  // Auto-load a specific week for editing when ?edit=YYYY-MM-DD is in the URL
+  useEffect(() => {
+    if (autoEditHandled.current) return;
+    const editWeek = searchParams.get("edit");
+    if (!editWeek || history.length === 0) return;
+    const match = history.find(
+      (s) => new Date(s.week_start).toISOString().split("T")[0] === editWeek
+    );
+    if (match) {
+      autoEditHandled.current = true;
+      loadSubmissionForEdit(match);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, searchParams]);
 
   function toggleLocation(loc: string) {
     setSelectedLocations((prev) => {

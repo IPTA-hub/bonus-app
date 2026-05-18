@@ -3,6 +3,7 @@ import { getTherapistBySlug, THERAPISTS } from "@/lib/therapists";
 import SubmitForm from "@/components/SubmitForm";
 import WeeklyReminder from "@/components/WeeklyReminder";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export function generateStaticParams() {
   return THERAPISTS.map((t) => ({ slug: t.slug }));
@@ -30,7 +31,9 @@ export default async function SubmitPage({
       <div className="max-w-lg mx-auto mb-4">
         <WeeklyReminder slug={slug} />
       </div>
-      <SubmitForm therapist={therapist} />
+      <Suspense fallback={<div className="max-w-lg mx-auto py-8 text-center text-gray-400">Loading...</div>}>
+        <SubmitForm therapist={therapist} />
+      </Suspense>
       <div className="max-w-lg mx-auto mt-4 text-center">
         <Link
           href={`/dashboard/${slug}`}
