@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Therapists and directors can only submit for themselves
+    // Therapists can only submit for themselves; directors and admins can submit for anyone
     if (
-      (session.role === "therapist" || session.role === "director") &&
+      session.role === "therapist" &&
       session.therapist_slug !== therapist_slug
     ) {
       return NextResponse.json(
@@ -289,18 +289,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Directors can only delete their own submissions
-    if (
-      session.role === "director" &&
-      session.therapist_slug !== therapist_slug
-    ) {
-      return NextResponse.json(
-        { error: "You can only delete your own submissions" },
-        { status: 403 }
-      );
-    }
-
-    // Admin can delete any submission
+    // Admin and directors can delete any submission
     await deleteSubmission(therapist_slug, week_start);
 
     return NextResponse.json({ success: true });
