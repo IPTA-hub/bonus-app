@@ -73,12 +73,12 @@ export async function POST(request: NextRequest) {
     let utilizationRate: number | null = null;
     let bonusAmount = 0;
 
-    // Calculate utilization first — needed for bonus eligibility check
-    if (!pto && avail > 0) {
+    // Calculate utilization — runs even on PTO weeks if data was entered
+    if (avail > 0) {
       utilizationRate = sched / avail;
     }
 
-    if (!pto && sched > 0) {
+    if (sched > 0) {
       arrivalRate = getArrivalRate(sched, seenCount, avail);
       if (arrivalRate !== null && !therapist.noBonus) {
         if (therapist.role === "Director") {
@@ -94,12 +94,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate eval bonus (OTR: 3+ evals with dev codes, SLP: 3+ evals)
-    const evalBonus = pto ? 0 : calculateEvalBonus(therapist.role, evalsCount, evalsDevCodes);
+    const evalBonus = calculateEvalBonus(therapist.role, evalsCount, evalsDevCodes);
 
     // Calculate recruitment bonus (Nicole Summerson only)
     const recHires = parseInt(String(recruitment_hires)) || 0;
     const recEvents = parseInt(String(recruitment_events)) || 0;
-    const recruitmentBonus = (therapist.role === "Director" && !pto)
+    const recruitmentBonus = therapist.role === "Director"
       ? calculateRecruitmentBonus(recHires, recEvents)
       : 0;
 
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     let pccEvalBonus = 0;
     let equineWalkBonus = 0;
 
-    if (therapist.role === "PCC" && !pto && roleBonusInput) {
+    if (therapist.role === "PCC" && roleBonusInput) {
       const rbd = roleBonusInput;
       const reschedulesSeen = parseInt(String(rbd.reschedules_seen)) || 0;
       const flexSeen = parseInt(String(rbd.flex_seen)) || 0;
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     // PCC Assistant — reschedule bonus only (no eval or patient arrivals)
-    if (therapist.role === "PCC-Asst" && !pto && roleBonusInput) {
+    if (therapist.role === "PCC-Asst" && roleBonusInput) {
       const rbd = roleBonusInput;
       const reschedulesSeen = parseInt(String(rbd.reschedules_seen)) || 0;
       const flexSeen = parseInt(String(rbd.flex_seen)) || 0;
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     }
 
     // All Equine team members get walk bonus (including Marley)
-    if (therapist.role === "Equine" && !pto && roleBonusInput) {
+    if (therapist.role === "Equine" && roleBonusInput) {
       const rbd = roleBonusInput;
       const extraWalks = parseInt(String(rbd.extra_walks)) || 0;
       equineWalkBonus = calculateEquineWalkBonus(extraWalks);
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Lexie McConnaughey — Marketing Director bonus
-    if (therapist.role === "Marketing" && !pto && roleBonusInput) {
+    if (therapist.role === "Marketing" && roleBonusInput) {
       const rbd = roleBonusInput;
       const otReferrals = parseInt(String(rbd.ot_referrals)) || 0;
       const otOpenings = parseInt(String(rbd.ot_openings)) || 0;
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Carolee Jaynes — Sponsorship bonus (on top of regular OTR bonus)
-    if (therapist_slug === SPONSORSHIP_SLUG && !pto && roleBonusInput) {
+    if (therapist_slug === SPONSORSHIP_SLUG && roleBonusInput) {
       const sponsorshipAmount = parseFloat(String(roleBonusInput.sponsorship_amount)) || 0;
       const sponsorshipBonus = calculateSponsorshipBonus(sponsorshipAmount);
 

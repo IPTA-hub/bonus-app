@@ -663,7 +663,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               )}
 
               {/* Eval tracking for OTR and SLP (not Clinical Directors, not noBonus) */}
-              {(therapist.role === "OTR" || therapist.role === "SLP") && !therapist.isClinicalDirector && !isNoBonus && (
+              {(therapist.role === "OTR" || therapist.role === "SLP") && !therapist.isClinicalDirector && !isNoBonus && hasLocations && (
                 <div className="border-t border-gray-200 pt-4 mt-2">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">
                     Evaluations
@@ -707,7 +707,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               )}
 
               {/* Recruitment tracking for Nicole Summerson */}
-              {isDirector && (
+              {isDirector && hasLocations && (
                 <div className="border-t border-gray-200 pt-4 mt-2">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">
                     Recruitment Bonus
@@ -749,7 +749,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           )}
 
           {/* PCC-specific fields */}
-          {isPCC && !isPto && (
+          {isPCC && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-4">
               <h4 className="text-sm font-semibold text-gray-700">
                 Reschedule Bonus
@@ -840,7 +840,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           )}
 
           {/* PCC Assistant — reschedule bonus only */}
-          {isPCCAssistant && !isPto && (
+          {isPCCAssistant && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-4">
               <h4 className="text-sm font-semibold text-gray-700">
                 Reschedule Bonus
@@ -880,7 +880,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           )}
 
           {/* Sponsorship fields (Carolee Jaynes) */}
-          {hasSponsorshipBonus && !isPto && (
+          {hasSponsorshipBonus && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
               <h4 className="text-sm font-semibold text-gray-700">
                 Sponsorship Bonus
@@ -911,7 +911,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           )}
 
           {/* Equine fields — all equine team members get walk bonus */}
-          {isEquine && !isPto && (
+          {isEquine && (
             <div className="border-t border-gray-200 pt-4 mt-2 space-y-3">
               <h4 className="text-sm font-semibold text-gray-700">
                 Productivity Bonus (Extra Walks)
@@ -936,7 +936,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           )}
 
           {/* Marketing fields (Lexie McConnaughey) */}
-          {isMarketing && !isPto && (
+          {isMarketing && (
             <div className="space-y-6">
               {/* Bonus 1: Referrals */}
               <div className="bg-emerald-50 rounded-lg p-4">
@@ -1152,6 +1152,14 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               )}
               {ptoCaseloadFull === "no" && (
                 <p className="text-amber-700 text-sm">Caseload: under 90% full</p>
+              )}
+              {result.bonus_amount > 0 && (
+                <p className="text-green-800 font-semibold">
+                  Bonus earned: ${(result.bonus_amount + (result.eval_bonus || 0) + (result.recruitment_bonus || 0)).toFixed(2)}
+                </p>
+              )}
+              {result.bonus_amount === 0 && result.arrival_rate !== null && (
+                <p className="text-amber-700 text-sm">Arrival rate logged but no bonus threshold reached.</p>
               )}
             </div>
           )}
