@@ -183,10 +183,7 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setResult(null);
     setError("");
 
-    const locs = submission.locations ? submission.locations.split(",").filter(Boolean) : [];
-    setSelectedLocations(locs);
-
-    // Try to load per-location data
+    // Try to load per-location data FIRST so we can derive locations from it if needed
     let locData: Record<string, LocationEntry> | null = null;
     if (submission.location_data) {
       try {
@@ -196,9 +193,9 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
           for (const [loc, data] of Object.entries(parsed)) {
             const d = data as { available: number; scheduled: number; seen: number };
             locData[loc] = {
-              available: String(d.available || ""),
-              scheduled: String(d.scheduled || ""),
-              seen: String(d.seen || ""),
+              available: String(d.available ?? ""),
+              scheduled: String(d.scheduled ?? ""),
+              seen: String(d.seen ?? ""),
             };
           }
         }
@@ -207,12 +204,23 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
       }
     }
 
+    // Derive locations: prefer the stored locations field; fall back to locData keys;
+    // fall back to therapist default locations so the form always shows something sensible
+    let locs = submission.locations ? submission.locations.split(",").filter(Boolean) : [];
+    if (locs.length === 0 && locData && Object.keys(locData).length > 0) {
+      locs = Object.keys(locData);
+    }
+    if (locs.length === 0) {
+      locs = therapist.workLocations.slice();
+    }
+    setSelectedLocations(locs);
+
     if (locData) {
       setLocationEntries(locData);
       setAvailable(String(therapist.expectedVisits));
       setScheduled("");
       setSeen("");
-    } else if (locs.length === 1) {
+    } else if (locs.length >= 1) {
       // Old single-location submission — load into per-location entry
       setLocationEntries({
         [locs[0]]: {
@@ -284,8 +292,13 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
     setSeen("");
     setIsPto(false);
     setPtoCaseloadFull("");
-    setSelectedLocations([]);
-    setLocationEntries({});
+    setSelectedLocations(therapist.workLocations.slice());
+    // Re-initialize location entries to defaults
+    const defaultEntries: Record<string, LocationEntry> = {};
+    for (const loc of therapist.workLocations) {
+      defaultEntries[loc] = { available: "", scheduled: "", seen: "" };
+    }
+    setLocationEntries(defaultEntries);
     setEvalsCompleted("");
     setEvalsWithDevCodes("");
     setRecruitmentHires("");
@@ -478,13 +491,23 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Week Starting (Monday)
             </label>
-            <input
-              type="date"
-              value={weekStart}
-              onChange={(e) => setWeekStart(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
-              required
-            />
+            {editingWeek ? (
+              // Locked during edit — prevents creating a duplicate record on a new date
+              <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 font-medium">
+                {new Date(editingWeek + "T12:00:00").toLocaleDateString("en-US", {
+                  weekday: "short", month: "long", day: "numeric", year: "numeric",
+                })}
+                <span className="ml-2 text-xs text-gray-400">(locked while editing)</span>
+              </div>
+            ) : (
+              <input
+                type="date"
+                value={weekStart}
+                onChange={(e) => setWeekStart(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+                required
+              />
+            )}
           </div>
 
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
