@@ -41,7 +41,7 @@ export default function TherapistDashboard({
 
   useEffect(() => {
     const fetches = [
-      fetch(`/api/data?slug=${therapist.slug}`)
+      fetch(`/api/data?slug=${therapist.slug}`, { cache: "no-store" })
         .then((r) => r.json())
         .then((d) => setData(Array.isArray(d) ? d : []))
         .catch(() => setData([])),
@@ -49,7 +49,7 @@ export default function TherapistDashboard({
     // For Nicole, PCC, and Equine, also fetch all submissions for dynamic bonuses
     if (needsAllData) {
       fetches.push(
-        fetch("/api/data")
+        fetch("/api/data", { cache: "no-store" })
           .then((r) => r.json())
           .then((d) => setAllData(Array.isArray(d) ? d : []))
           .catch(() => setAllData([]))

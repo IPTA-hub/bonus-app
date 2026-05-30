@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
-import { getTherapistBySlug, THERAPISTS } from "@/lib/therapists";
+import { getTherapistBySlug } from "@/lib/therapists";
 import TherapistDashboard from "@/components/TherapistDashboard";
 import Link from "next/link";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
-export function generateStaticParams() {
-  return THERAPISTS.map((t) => ({ slug: t.slug }));
-}
+// Force dynamic so the page is never served from the router cache.
+// Without this, navigating back after an edit shows stale data because
+// Next.js restores the cached page and the useEffect fetch never re-runs.
+export const dynamic = "force-dynamic";
 
 export default async function TherapistDashboardPage({
   params,

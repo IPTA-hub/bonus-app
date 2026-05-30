@@ -26,17 +26,23 @@ export async function GET(request: NextRequest) {
         );
       }
       const rows = await getSubmissions(mySlug);
-      return NextResponse.json(rows);
+      return NextResponse.json(rows, {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+      });
     }
 
     // Admin and directors can see everything
     if (slug) {
       const rows = await getSubmissions(slug);
-      return NextResponse.json(rows);
+      return NextResponse.json(rows, {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+      });
     }
 
     const rows = await getAllSubmissions();
-    return NextResponse.json(rows);
+    return NextResponse.json(rows, {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+    });
   } catch (error) {
     console.error("Data fetch error:", error);
     return NextResponse.json(
