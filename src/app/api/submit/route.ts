@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSubmission, deleteSubmission, initDb } from "@/lib/db";
-import { getTherapistBySlug } from "@/lib/therapists";
+import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug } from "@/lib/db";
+import { getTherapistBySlug, customStaffRowToTherapist } from "@/lib/therapists";
 import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus, calculateSponsorshipBonus, SPONSORSHIP_SLUG, MARKETING_SLUG, calculateMarketingReferralBonus, calculateMarketingMeetingBonus, calculateMarketingSponsorshipBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
@@ -35,7 +35,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const therapist = getTherapistBySlug(therapist_slug);
+    let therapist = getTherapistBySlug(therapist_slug);
+    if (!therapist) {
+      const customRow = await getCustomStaffBySlug(therapist_slug);
+      if (customRow) therapist = customStaffRowToTherapist(customRow);
+    }
     if (!therapist) {
       return NextResponse.json(
         { error: "Therapist not found" },

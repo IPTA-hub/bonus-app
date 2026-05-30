@@ -50,6 +50,24 @@ export async function initDb() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS custom_staff (
+      id SERIAL PRIMARY KEY,
+      slug VARCHAR(100) UNIQUE NOT NULL,
+      name VARCHAR(200) NOT NULL,
+      role VARCHAR(50) NOT NULL DEFAULT 'OTR',
+      hours_per_week DECIMAL(5,2) NOT NULL DEFAULT 40,
+      expected_visits INTEGER NOT NULL DEFAULT 0,
+      is_clinical_director BOOLEAN NOT NULL DEFAULT FALSE,
+      director_location VARCHAR(100),
+      hire_date DATE,
+      work_locations TEXT NOT NULL DEFAULT '',
+      email VARCHAR(200),
+      no_bonus BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
 }
 
 export interface User {
@@ -342,4 +360,77 @@ export async function getSubmission(
     LIMIT 1
   `;
   return rows.length > 0 ? (rows[0] as unknown as Submission) : null;
+}
+
+// ─── Staff archiving ──────────────────────────────────────────────────────────
+
+export async function setUserArchived(therapistSlug: string, archived: boolean): Promise<void> {
+  const sql = getDb();
+  await sql`UPDATE users SET is_archived = ${archived} WHERE therapist_slug = ${therapistSlug}`;
+}
+
+export async function getArchivedSlugs(): Promise<string[]> {
+  const sql = getDb();
+  const rows = await sql`SELECT therapist_slug FROM users WHERE is_archived = TRUE AND therapist_slug IS NOT NULL`;
+  return rows.map((r) => r.therapist_slug as string);
+}
+
+// ─── Custom staff (DB-managed) ────────────────────────────────────────────────
+
+export interface CustomStaffRow {
+  id: number;
+  slug: string;
+  name: string;
+  role: string;
+  hours_per_week: number;
+  expected_visits: number;
+  is_clinical_director: boolean;
+  director_location: string | null;
+  hire_date: string | null;
+  work_locations: string;
+  email: string | null;
+  no_bonus: boolean;
+}
+
+export async function getAllCustomStaff(): Promise<CustomStaffRow[]> {
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM custom_staff ORDER BY name ASC`;
+  return rows as unknown as CustomStaffRow[];
+}
+
+export async function getCustomStaffBySlug(slug: string): Promise<CustomStaffRow | null> {
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM custom_staff WHERE slug = ${slug} LIMIT 1`;
+  return rows.length > 0 ? (rows[0] as unknown as CustomStaffRow) : null;
+}
+
+export async function upsertCustomStaff(data: {
+  slug: string;
+  name: string;
+  role: string;
+  hours_per_week: number;
+  expected_visits: number;
+  is_clinical_director: boolean;
+  director_location: string | null;
+  hire_date: string | null;
+  work_locations: string;
+  email: string | null;
+  no_bonus: boolean;
+}): Promise<void> {
+  const sql = getDb();
+  await sql`
+    INSERT INTO custom_staff (slug, name, role, hours_per_week, expected_visits, is_clinical_director, director_location, hire_date, work_locations, email, no_bonus)
+    VALUES (${data.slug}, ${data.name}, ${data.role}, ${data.hours_per_week}, ${data.expected_visits}, ${data.is_clinical_director}, ${data.director_location}, ${data.hire_date}, ${data.work_locations}, ${data.email}, ${data.no_bonus})
+    ON CONFLICT (slug) DO UPDATE SET
+      name = EXCLUDED.name,
+      role = EXCLUDED.role,
+      hours_per_week = EXCLUDED.hours_per_week,
+      expected_visits = EXCLUDED.expected_visits,
+      is_clinical_director = EXCLUDED.is_clinical_director,
+      director_location = EXCLUDED.director_location,
+      hire_date = EXCLUDED.hire_date,
+      work_locations = EXCLUDED.work_locations,
+      email = EXCLUDED.email,
+      no_bonus = EXCLUDED.no_bonus
+  `;
 }

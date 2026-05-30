@@ -38,6 +38,7 @@ export default function NavBar() {
   if (role === "admin") {
     navLinks.push({ href: "/", label: "Staff Directory" });
     navLinks.push({ href: "/dashboard", label: "Clinic Dashboard" });
+    navLinks.push({ href: "/admin/staff", label: "Manage Staff" });
   }
 
   if (role === "therapist" && therapistSlug) {

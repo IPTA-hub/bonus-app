@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getTherapistBySlug, THERAPISTS } from "@/lib/therapists";
+import { getTherapistBySlug, customStaffRowToTherapist, THERAPISTS } from "@/lib/therapists";
+import { getCustomStaffBySlug, getArchivedSlugs, initDb } from "@/lib/db";
 import SubmitForm from "@/components/SubmitForm";
 import WeeklyReminder from "@/components/WeeklyReminder";
 import Link from "next/link";
@@ -15,8 +16,25 @@ export default async function SubmitPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const therapist = getTherapistBySlug(slug);
+
+  let therapist = getTherapistBySlug(slug);
+
+  if (!therapist) {
+    // Check DB for custom-added staff
+    try {
+      await initDb();
+      const customRow = await getCustomStaffBySlug(slug);
+      if (customRow) therapist = customStaffRowToTherapist(customRow);
+    } catch { /* DB unavailable */ }
+  }
+
   if (!therapist) notFound();
+
+  // Block access for archived staff
+  try {
+    const archivedSlugs = await getArchivedSlugs();
+    if (archivedSlugs.includes(slug)) notFound();
+  } catch { /* DB unavailable — allow access */ }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">

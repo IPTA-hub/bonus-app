@@ -176,6 +176,39 @@ export function getTherapistBySlug(slug: string): Therapist | undefined {
   return THERAPISTS.find((t) => t.slug === slug);
 }
 
+// Convert a DB custom_staff row into a Therapist object
+export function customStaffRowToTherapist(row: {
+  slug: string;
+  name: string;
+  role: string;
+  hours_per_week: number;
+  expected_visits: number;
+  is_clinical_director: boolean;
+  director_location: string | null;
+  hire_date: string | null;
+  work_locations: string;
+  email: string | null;
+  no_bonus: boolean;
+}): Therapist {
+  const hours = Number(row.hours_per_week);
+  const isFullTime = hours >= FT_HOURS;
+  return {
+    name: row.name,
+    slug: row.slug,
+    role: row.role,
+    hoursPerWeek: hours,
+    isFullTime,
+    proRateFactor: isFullTime ? 1.0 : Math.round((hours / PRORATE_BASE) * 10000) / 10000,
+    expectedVisits: row.expected_visits,
+    isClinicalDirector: row.is_clinical_director,
+    directorLocation: row.director_location ?? undefined,
+    hireDate: row.hire_date ?? undefined,
+    workLocations: row.work_locations ? row.work_locations.split(",").filter(Boolean) : [],
+    email: row.email ?? undefined,
+    noBonus: row.no_bonus,
+  };
+}
+
 export function getClinicalDirectors(): Therapist[] {
   return THERAPISTS.filter((t) => t.isClinicalDirector);
 }
