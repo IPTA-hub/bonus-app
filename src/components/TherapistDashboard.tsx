@@ -577,13 +577,18 @@ export default function TherapistDashboard({
                   <div key={row.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
                     {/* Header: week date + bonus */}
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-gray-900">
-                        {new Date(row.week_start).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900">
+                          {new Date(row.week_start).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </span>
+                        {row.is_pto && (
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">PTO</span>
+                        )}
+                      </div>
                       <span className={`text-lg font-bold ${bonusTotal > 0 ? "text-green-700" : "text-gray-400"}`}>
                         {bonusTotal > 0 ? `$${bonusTotal.toFixed(2)}` : "-"}
                       </span>
@@ -879,13 +884,20 @@ export default function TherapistDashboard({
                       .split("T")[0];
                     const isDeleting = deleteConfirm === weekDate;
                     return (
-                      <tr key={row.id} className="hover:bg-gray-50">
+                      <tr key={row.id} className={`hover:bg-gray-50 ${row.is_pto ? "bg-amber-50/30" : ""}`}>
                         <td className="px-6 py-3">
-                          {new Date(row.week_start).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          <div className="flex items-center gap-1.5">
+                            <span>
+                              {new Date(row.week_start).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                            {row.is_pto && (
+                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">PTO</span>
+                            )}
+                          </div>
                         </td>
                         {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">

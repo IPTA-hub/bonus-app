@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate eval bonus (OTR: 3+ evals with dev codes, SLP: 3+ evals)
-    const evalBonus = calculateEvalBonus(therapist.role, evalsCount, evalsDevCodes);
+    let evalBonus = calculateEvalBonus(therapist.role, evalsCount, evalsDevCodes);
 
     // Calculate recruitment bonus (Nicole Summerson only)
     const recHires = parseInt(String(recruitment_hires)) || 0;
@@ -225,6 +225,20 @@ export async function POST(request: NextRequest) {
       bonusAmount += sponsorshipBonus;
     }
 
+    // PTO 50% rule: on PTO weeks, only pay bonuses if staff worked ≥ 50% of available hours
+    // (scheduled / available >= 0.50). Below that threshold, zero out all bonuses.
+    const ptoBonusEligible = !pto || avail === 0 || sched / avail >= 0.5;
+    let finalRecruitmentBonus = recruitmentBonus;
+    if (!ptoBonusEligible) {
+      bonusAmount = 0;
+      evalBonus = 0;
+      pccRescheduleBonus = 0;
+      pccEvalBonus = 0;
+      equineWalkBonus = 0;
+      finalRecruitmentBonus = 0;
+      roleBonusDataStr = "";
+    }
+
     // pto_caseload_full: true = "yes", false = "no", null = not answered
     const ptoCaseloadFull: boolean | null =
       pto_caseload_full === true || pto_caseload_full === "yes"
@@ -251,7 +265,7 @@ export async function POST(request: NextRequest) {
       location_data: locationDataStr,
       recruitment_hires: recHires,
       recruitment_events: recEvents,
-      recruitment_bonus: recruitmentBonus,
+      recruitment_bonus: finalRecruitmentBonus,
       role_bonus_data: roleBonusDataStr,
       pto_caseload_full: ptoCaseloadFull,
     });
@@ -266,7 +280,7 @@ export async function POST(request: NextRequest) {
       eval_bonus: evalBonus,
       recruitment_hires: recHires,
       recruitment_events: recEvents,
-      recruitment_bonus: recruitmentBonus,
+      recruitment_bonus: finalRecruitmentBonus,
       role_bonus_data: roleBonusDataStr,
     });
   } catch (error) {
