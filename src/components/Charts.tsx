@@ -38,7 +38,7 @@ interface WeeklyChartProps {
 
 export function WeeklyArrivalChart({ data }: WeeklyChartProps) {
   const chartData = data
-    .filter((d) => !d.is_pto && d.arrival_rate !== null)
+    .filter((d) => d.arrival_rate !== null && d.scheduled > 0)
     .map((d) => ({
       week: new Date(d.week_start).toLocaleDateString("en-US", {
         month: "short",
@@ -97,7 +97,7 @@ function aggregateMonthly(data: Submission[]): MonthlyData[] {
   const months: Record<string, { totalSeen: number; totalSched: number; bonus: number; weeks: number }> = {};
 
   for (const d of data) {
-    if (d.is_pto) continue;
+    if (!d.scheduled || d.scheduled === 0) continue; // skip full PTO/empty weeks
     const date = new Date(d.week_start);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     if (!months[key]) months[key] = { totalSeen: 0, totalSched: 0, bonus: 0, weeks: 0 };
@@ -188,7 +188,7 @@ export function MonthlyBonusChart({ data }: WeeklyChartProps) {
 
 export function WeeklyUtilizationChart({ data }: WeeklyChartProps) {
   const chartData = data
-    .filter((d) => !d.is_pto && d.utilization_rate !== null && d.utilization_rate !== undefined)
+    .filter((d) => d.utilization_rate !== null && d.utilization_rate !== undefined && d.scheduled > 0)
     .map((d) => ({
       week: new Date(d.week_start).toLocaleDateString("en-US", {
         month: "short",

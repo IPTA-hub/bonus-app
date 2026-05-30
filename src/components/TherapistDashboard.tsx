@@ -61,7 +61,7 @@ export default function TherapistDashboard({
   // Calculate company-wide arrival rate per week (for Nicole's company bonus)
   function getCompanyRateForWeek(weekStart: string): number | null {
     const weekSubs = allData.filter(
-      (s) => s.week_start === weekStart && !s.is_pto && s.scheduled > 0
+      (s) => s.week_start === weekStart && s.scheduled > 0
     );
     if (weekSubs.length === 0) return null;
     const totalSched = weekSubs.reduce((a, s) => a + s.scheduled, 0);
@@ -72,7 +72,7 @@ export default function TherapistDashboard({
   // Calculate location-specific arrival rate & bonus for a given week (PCC/Equine)
   function getLocationArrivalForWeek(weekStart: string, location: string): { rate: number; scheduled: number; bonus: number } | null {
     const weekSubs = allData.filter(
-      (s) => s.week_start === weekStart && !s.is_pto && s.scheduled > 0
+      (s) => s.week_start === weekStart && s.scheduled > 0
     );
     if (weekSubs.length === 0) return null;
 
@@ -176,7 +176,7 @@ export default function TherapistDashboard({
             <div className="bg-purple-50 rounded-lg p-3 text-center">
               <p className="text-xs text-purple-600 font-medium uppercase">Company Productivity</p>
               <p className="text-xl font-bold text-purple-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   const rate = getCompanyRateForWeek(s.week_start);
                   return a + (rate !== null ? calculateCompanyProductivityBonus(rate) : 0);
                 }, 0).toFixed(0)}
@@ -195,7 +195,7 @@ export default function TherapistDashboard({
               <p className="text-xl font-bold text-green-700">
                 ${(
                   data.reduce((a, s) => a + (Number(s.bonus_amount) || 0) + (Number(s.recruitment_bonus) || 0), 0) +
-                  data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  data.reduce((a, s) => {
                     const rate = getCompanyRateForWeek(s.week_start);
                     return a + (rate !== null ? calculateCompanyProductivityBonus(rate) : 0);
                   }, 0)
@@ -215,7 +215,7 @@ export default function TherapistDashboard({
             <div className="bg-teal-50 rounded-lg p-3 text-center">
               <p className="text-xs text-teal-600 font-medium uppercase">Reschedules</p>
               <p className="text-xl font-bold text-teal-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: PCCBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.reschedule_bonus || 0);
@@ -223,7 +223,7 @@ export default function TherapistDashboard({
                 }, 0).toFixed(0)}
               </p>
               <p className="text-xs text-teal-500 mt-1">
-                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                {data.reduce((a, s) => {
                   try {
                     const rbd: PCCBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.reschedules_seen || 0) + (rbd.flex_seen || 0);
@@ -234,7 +234,7 @@ export default function TherapistDashboard({
             <div className="bg-indigo-50 rounded-lg p-3 text-center">
               <p className="text-xs text-indigo-600 font-medium uppercase">Eval Bonus</p>
               <p className="text-xl font-bold text-indigo-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: PCCBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.eval_bonus || 0);
@@ -245,7 +245,7 @@ export default function TherapistDashboard({
             <div className="bg-purple-50 rounded-lg p-3 text-center">
               <p className="text-xs text-purple-600 font-medium uppercase">Patient Arrivals</p>
               <p className="text-xl font-bold text-purple-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
                   const result = getLocationArrivalForWeek(s.week_start, loc);
                   return a + (result?.bonus || 0);
@@ -257,7 +257,7 @@ export default function TherapistDashboard({
               <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
               <p className="text-xl font-bold text-green-700">
                 ${(
-                  data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  data.reduce((a, s) => {
                     let weekTotal = Number(s.bonus_amount) || 0;
                     const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
                     const arrResult = getLocationArrivalForWeek(s.week_start, loc);
@@ -280,7 +280,7 @@ export default function TherapistDashboard({
             <div className="bg-teal-50 rounded-lg p-3 text-center">
               <p className="text-xs text-teal-600 font-medium uppercase">Reschedules</p>
               <p className="text-xl font-bold text-teal-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: PCCAssistantBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.reschedule_bonus || 0);
@@ -288,7 +288,7 @@ export default function TherapistDashboard({
                 }, 0).toFixed(0)}
               </p>
               <p className="text-xs text-teal-500 mt-1">
-                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                {data.reduce((a, s) => {
                   try {
                     const rbd: PCCAssistantBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.reschedules_seen || 0) + (rbd.flex_seen || 0);
@@ -299,7 +299,7 @@ export default function TherapistDashboard({
             <div className="bg-gray-50 rounded-lg p-3 text-center">
               <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
               <p className="text-xl font-bold text-green-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => Number(s.bonus_amount) || 0, 0).toFixed(0)}
+                ${data.reduce((a, s) => Number(s.bonus_amount) || 0, 0).toFixed(0)}
               </p>
             </div>
           </div>
@@ -319,7 +319,7 @@ export default function TherapistDashboard({
             <div className="bg-amber-50 rounded-lg p-3 text-center">
               <p className="text-xs text-amber-600 font-medium uppercase">Extra Walks</p>
               <p className="text-xl font-bold text-amber-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.walk_bonus || 0);
@@ -327,7 +327,7 @@ export default function TherapistDashboard({
                 }, 0).toFixed(0)}
               </p>
               <p className="text-xs text-amber-500 mt-1">
-                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                {data.reduce((a, s) => {
                   try {
                     const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.extra_walks || 0);
@@ -338,7 +338,7 @@ export default function TherapistDashboard({
             <div className="bg-gray-50 rounded-lg p-3 text-center">
               <p className="text-xs text-gray-600 font-medium uppercase">Walk Total (YTD)</p>
               <p className="text-xl font-bold text-green-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.walk_bonus || 0);
@@ -375,7 +375,7 @@ export default function TherapistDashboard({
             <div className="bg-amber-50 rounded-lg p-3 text-center">
               <p className="text-xs text-amber-600 font-medium uppercase">Extra Walks</p>
               <p className="text-xl font-bold text-amber-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.walk_bonus || 0);
@@ -383,7 +383,7 @@ export default function TherapistDashboard({
                 }, 0).toFixed(0)}
               </p>
               <p className="text-xs text-amber-500 mt-1">
-                {data.filter((s) => !s.is_pto).reduce((a, s) => {
+                {data.reduce((a, s) => {
                   try {
                     const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.extra_walks || 0);
@@ -394,7 +394,7 @@ export default function TherapistDashboard({
             <div className="bg-purple-50 rounded-lg p-3 text-center">
               <p className="text-xs text-purple-600 font-medium uppercase">Patient Arrivals</p>
               <p className="text-xl font-bold text-purple-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   const arrResult = getLocationArrivalForWeek(s.week_start, "Farm");
                   return a + (arrResult?.bonus || 0);
                 }, 0).toFixed(0)}
@@ -405,7 +405,7 @@ export default function TherapistDashboard({
               <p className="text-xs text-gray-600 font-medium uppercase">Grand Total</p>
               <p className="text-xl font-bold text-green-700">
                 ${(
-                  data.filter((s) => !s.is_pto).reduce((a, s) => {
+                  data.reduce((a, s) => {
                     let weekTotal = 0;
                     try {
                       const rbd: EquineBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
@@ -435,7 +435,7 @@ export default function TherapistDashboard({
             <div className="bg-emerald-50 rounded-lg p-3 text-center">
               <p className="text-xs text-emerald-600 font-medium uppercase">Referrals</p>
               <p className="text-xl font-bold text-emerald-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: MarketingBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.referral_bonus || 0);
@@ -447,7 +447,7 @@ export default function TherapistDashboard({
             <div className="bg-purple-50 rounded-lg p-3 text-center">
               <p className="text-xs text-purple-600 font-medium uppercase">Meetings</p>
               <p className="text-xl font-bold text-purple-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: MarketingBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.meeting_bonus || 0);
@@ -458,7 +458,7 @@ export default function TherapistDashboard({
             <div className="bg-amber-50 rounded-lg p-3 text-center">
               <p className="text-xs text-amber-600 font-medium uppercase">Sponsorships</p>
               <p className="text-xl font-bold text-amber-700">
-                ${data.filter((s) => !s.is_pto).reduce((a, s) => {
+                ${data.reduce((a, s) => {
                   try {
                     const rbd: MarketingBonusData = s.role_bonus_data ? JSON.parse(s.role_bonus_data) : {};
                     return a + (rbd.sponsorship_bonus || 0);
@@ -526,16 +526,16 @@ export default function TherapistDashboard({
                 // Compute bonus total (same logic as table)
                 const bonusTotal = (() => {
                   let total = Number(row.bonus_amount) + (therapist.isClinicalDirector || isDirector ? 0 : Number(row.eval_bonus || 0)) + Number(row.recruitment_bonus || 0);
-                  if (isDirector && !row.is_pto) {
+                  if (isDirector && row.scheduled) {
                     const compRate = getCompanyRateForWeek(row.week_start);
                     if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
                   }
-                  if (isPCC && !row.is_pto) {
+                  if (isPCC && row.scheduled) {
                     const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
                     const locArr = getLocationArrivalForWeek(row.week_start, loc);
                     if (locArr) total += locArr.bonus;
                   }
-                  if (isEquineDirector && !row.is_pto) {
+                  if (isEquineDirector && row.scheduled) {
                     const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
                     if (farmArr) total += farmArr.bonus;
                   }
@@ -548,14 +548,14 @@ export default function TherapistDashboard({
                   try { pccData = JSON.parse(row.role_bonus_data); } catch { /* */ }
                 }
                 const pccLoc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
-                const pccLocArr = isPCC && !row.is_pto ? getLocationArrivalForWeek(row.week_start, pccLoc) : null;
+                const pccLocArr = isPCC && row.scheduled ? getLocationArrivalForWeek(row.week_start, pccLoc) : null;
 
                 // Equine bonus data
                 let equineData: EquineBonusData = { extra_walks: 0, walk_bonus: 0 };
                 if (isEquine && row.role_bonus_data) {
                   try { equineData = JSON.parse(row.role_bonus_data); } catch { /* */ }
                 }
-                const farmArr = isEquineDirector && !row.is_pto ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
+                const farmArr = isEquineDirector && row.scheduled ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
 
                 // Marketing bonus data
                 let marketingData: MarketingBonusData = { ot_referrals: 0, ot_openings: 0, st_referrals: 0, st_openings: 0, new_doctor_referrals: 0, new_daycare_screenings: 0, referral_bonus: 0, dropin_physician_visits: 0, physician_meetings: 0, non_physician_meetings: 0, physician_tours: 0, meeting_bonus: 0, sponsorship_amount: 0, sponsorship_recurring: false, sponsorship_bonus: 0 };
@@ -570,7 +570,7 @@ export default function TherapistDashboard({
                 }
 
                 // Director company rate
-                const compRate = isDirector && !row.is_pto ? getCompanyRateForWeek(row.week_start) : null;
+                const compRate = isDirector && row.scheduled ? getCompanyRateForWeek(row.week_start) : null;
                 const compBonus = compRate !== null ? calculateCompanyProductivityBonus(compRate) : 0;
 
                 return (
@@ -596,12 +596,12 @@ export default function TherapistDashboard({
                         <>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Available</p>
-                            <p className="font-medium">{row.is_pto ? "-" : (row.available || "-")}</p>
+                            <p className="font-medium">{(!row.scheduled) ? "-" : (row.available || "-")}</p>
                           </div>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Sched / Seen</p>
                             <p className="font-medium">
-                              {row.is_pto ? (
+                              {(!row.scheduled) ? (
                                 <span className="text-amber-600">PTO</span>
                               ) : (
                                 `${row.scheduled} / ${row.seen}`
@@ -640,16 +640,16 @@ export default function TherapistDashboard({
                         <>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Resched</p>
-                            <p className="font-medium">{row.is_pto ? "-" : pccData.reschedules_seen}</p>
+                            <p className="font-medium">{!row.scheduled ? "-" : pccData.reschedules_seen}</p>
                           </div>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Flex</p>
-                            <p className="font-medium">{row.is_pto ? "-" : pccData.flex_seen}</p>
+                            <p className="font-medium">{!row.scheduled ? "-" : pccData.flex_seen}</p>
                           </div>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Eval</p>
                             <p className="font-medium">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 pccData.eval_bonus > 0
                                   ? <span className="text-green-600">${pccData.eval_bonus}</span>
                                   : <span className="text-gray-400">$0</span>
@@ -672,13 +672,13 @@ export default function TherapistDashboard({
                         <>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Resched</p>
-                            <p className="font-medium">{row.is_pto ? "-" : (() => {
+                            <p className="font-medium">{!row.scheduled ? "-" : (() => {
                               try { const rbd = row.role_bonus_data ? JSON.parse(row.role_bonus_data) : {}; return rbd.reschedules_seen || 0; } catch { return 0; }
                             })()}</p>
                           </div>
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Flex</p>
-                            <p className="font-medium">{row.is_pto ? "-" : (() => {
+                            <p className="font-medium">{!row.scheduled ? "-" : (() => {
                               try { const rbd = row.role_bonus_data ? JSON.parse(row.role_bonus_data) : {}; return rbd.flex_seen || 0; } catch { return 0; }
                             })()}</p>
                           </div>
@@ -691,7 +691,7 @@ export default function TherapistDashboard({
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Walks</p>
                             <p className="font-medium">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 equineData.extra_walks > 0
                                   ? <span className="text-amber-700">{equineData.extra_walks} <span className="text-green-600 text-xs">(${equineData.walk_bonus})</span></span>
                                   : "0"
@@ -717,7 +717,7 @@ export default function TherapistDashboard({
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Referrals</p>
                             <p className="font-medium">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 marketingData.referral_bonus > 0
                                   ? <span className="text-emerald-600">${marketingData.referral_bonus}</span>
                                   : <span className="text-gray-400">$0</span>
@@ -727,7 +727,7 @@ export default function TherapistDashboard({
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Meetings</p>
                             <p className="font-medium">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 marketingData.meeting_bonus > 0
                                   ? <span className="text-purple-600">${marketingData.meeting_bonus}</span>
                                   : <span className="text-gray-400">$0</span>
@@ -737,7 +737,7 @@ export default function TherapistDashboard({
                           <div className="bg-gray-50 rounded p-2">
                             <p className="text-xs text-gray-500">Sponsorship</p>
                             <p className="font-medium">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 marketingData.sponsorship_bonus > 0
                                   ? <span className="text-amber-600">${marketingData.sponsorship_bonus.toFixed(2)}</span>
                                   : <span className="text-gray-400">$0</span>
@@ -751,26 +751,26 @@ export default function TherapistDashboard({
                     {/* Additional role-specific fields */}
                     <div className="flex flex-wrap gap-2 text-xs">
                       {/* Sponsorship */}
-                      {hasSponsorshipBonus && !row.is_pto && sponsorData.sponsorship_bonus > 0 && (
+                      {hasSponsorshipBonus && !!row.scheduled && sponsorData.sponsorship_bonus > 0 && (
                         <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
                           Sponsor: ${sponsorData.sponsorship_bonus.toFixed(2)}
                         </span>
                       )}
 
                       {/* Evals for OTR/SLP */}
-                      {(therapist.role === "OTR" || therapist.role === "SLP") && !row.is_pto && (
+                      {(therapist.role === "OTR" || therapist.role === "SLP") && !!row.scheduled && (
                         <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">
                           Evals: {row.evals_completed || 0}
                         </span>
                       )}
-                      {therapist.role === "OTR" && !row.is_pto && (
+                      {therapist.role === "OTR" && !!row.scheduled && (
                         <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">
                           w/ Dev: {row.evals_with_dev_codes || 0}
                         </span>
                       )}
 
                       {/* Director fields */}
-                      {isDirector && !row.is_pto && (Number(row.recruitment_bonus) || 0) > 0 && (
+                      {isDirector && !!row.scheduled && (Number(row.recruitment_bonus) || 0) > 0 && (
                         <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
                           Recruit: ${Number(row.recruitment_bonus).toFixed(0)}
                         </span>
@@ -889,12 +889,12 @@ export default function TherapistDashboard({
                         </td>
                         {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
-                            {row.is_pto ? "-" : (row.available || "-")}
+                            {(!row.scheduled) ? "-" : (row.available || "-")}
                           </td>
                         )}
                         {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
-                            {row.is_pto ? (
+                            {!row.scheduled ? (
                               <span className="text-amber-600 font-medium">PTO</span>
                             ) : (
                               row.scheduled
@@ -913,7 +913,7 @@ export default function TherapistDashboard({
                           </td>
                         )}
                         {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
-                          <td className="px-6 py-3">{row.is_pto ? "-" : row.seen}</td>
+                          <td className="px-6 py-3">{!row.scheduled ? "-" : row.seen}</td>
                         )}
                         {!isPCC && !isPCCAssistant && !isEquine && !isMarketing &&(
                           <td className="px-6 py-3">
@@ -939,13 +939,13 @@ export default function TherapistDashboard({
                           let rbd: PCCBonusData = { reschedules_seen: 0, flex_seen: 0, eval_slots: 0, evals_filled: 0, clinic_cancellations: 0, reschedule_bonus: 0, eval_bonus: 0 };
                           try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
                           const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
-                          const locArr = !row.is_pto ? getLocationArrivalForWeek(row.week_start, loc) : null;
+                          const locArr = row.scheduled ? getLocationArrivalForWeek(row.week_start, loc) : null;
                           return (
                             <>
-                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.reschedules_seen}</td>
-                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.flex_seen}</td>
+                              <td className="px-6 py-3">{!row.scheduled ? "-" : rbd.reschedules_seen}</td>
+                              <td className="px-6 py-3">{!row.scheduled ? "-" : rbd.flex_seen}</td>
                               <td className="px-6 py-3">
-                                {row.is_pto ? "-" : (
+                                {!row.scheduled ? "-" : (
                                   rbd.eval_bonus > 0
                                     ? <span className="text-green-600 font-medium">${rbd.eval_bonus}</span>
                                     : <span className="text-gray-400">$0</span>
@@ -968,8 +968,8 @@ export default function TherapistDashboard({
                           try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
                           return (
                             <>
-                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.reschedules_seen}</td>
-                              <td className="px-6 py-3">{row.is_pto ? "-" : rbd.flex_seen}</td>
+                              <td className="px-6 py-3">{!row.scheduled ? "-" : rbd.reschedules_seen}</td>
+                              <td className="px-6 py-3">{!row.scheduled ? "-" : rbd.flex_seen}</td>
                             </>
                           );
                         })()}
@@ -979,7 +979,7 @@ export default function TherapistDashboard({
                           try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
                           return (
                             <td className="px-6 py-3">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 rbd.extra_walks > 0
                                   ? <span className="text-amber-700 font-medium">{rbd.extra_walks} <span className="text-green-600 text-xs">(${rbd.walk_bonus})</span></span>
                                   : "0"
@@ -989,7 +989,7 @@ export default function TherapistDashboard({
                         })()}
                         {/* Equine Director — Farm Rate column */}
                         {isEquineDirector && (() => {
-                          const farmArr = !row.is_pto ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
+                          const farmArr = row.scheduled ? getLocationArrivalForWeek(row.week_start, "Farm") : null;
                           return (
                             <td className="px-6 py-3">
                               {farmArr ? (
@@ -1008,21 +1008,21 @@ export default function TherapistDashboard({
                           return (
                             <>
                               <td className="px-6 py-3">
-                                {row.is_pto ? "-" : (
+                                {!row.scheduled ? "-" : (
                                   rbd.referral_bonus > 0
                                     ? <span className="text-emerald-600 font-medium">${rbd.referral_bonus}</span>
                                     : <span className="text-gray-400">$0</span>
                                 )}
                               </td>
                               <td className="px-6 py-3">
-                                {row.is_pto ? "-" : (
+                                {!row.scheduled ? "-" : (
                                   rbd.meeting_bonus > 0
                                     ? <span className="text-purple-600 font-medium">${rbd.meeting_bonus}</span>
                                     : <span className="text-gray-400">$0</span>
                                 )}
                               </td>
                               <td className="px-6 py-3">
-                                {row.is_pto ? "-" : (
+                                {!row.scheduled ? "-" : (
                                   rbd.sponsorship_bonus > 0
                                     ? <span className="text-amber-600 font-medium">${rbd.sponsorship_bonus.toFixed(2)}</span>
                                     : <span className="text-gray-400">$0</span>
@@ -1037,7 +1037,7 @@ export default function TherapistDashboard({
                           try { if (row.role_bonus_data) rbd = JSON.parse(row.role_bonus_data); } catch { /* */ }
                           return (
                             <td className="px-6 py-3">
-                              {row.is_pto ? "-" : (
+                              {!row.scheduled ? "-" : (
                                 rbd.sponsorship_bonus > 0
                                   ? <span className="text-emerald-600 font-medium">${rbd.sponsorship_bonus.toFixed(2)} <span className="text-gray-400 text-xs">(${rbd.sponsorship_amount.toLocaleString()})</span></span>
                                   : "-"
@@ -1047,17 +1047,17 @@ export default function TherapistDashboard({
                         })()}
                         {(therapist.role === "OTR" || therapist.role === "SLP") && (
                           <td className="px-6 py-3">
-                            {row.is_pto ? "-" : (row.evals_completed || 0)}
+                            {!row.scheduled ? "-" : (row.evals_completed || 0)}
                           </td>
                         )}
                         {therapist.role === "OTR" && (
                           <td className="px-6 py-3">
-                            {row.is_pto ? "-" : (row.evals_with_dev_codes || 0)}
+                            {!row.scheduled ? "-" : (row.evals_with_dev_codes || 0)}
                           </td>
                         )}
                         {isDirector && (
                           <td className="px-6 py-3 text-emerald-600 font-medium">
-                            {row.is_pto ? "-" : (
+                            {!row.scheduled ? "-" : (
                               (Number(row.recruitment_bonus) || 0) > 0
                                 ? `$${Number(row.recruitment_bonus).toFixed(0)}`
                                 : "-"
@@ -1065,7 +1065,7 @@ export default function TherapistDashboard({
                           </td>
                         )}
                         {isDirector && (() => {
-                          const compRate = !row.is_pto ? getCompanyRateForWeek(row.week_start) : null;
+                          const compRate = row.scheduled ? getCompanyRateForWeek(row.week_start) : null;
                           const compBonus = compRate !== null ? calculateCompanyProductivityBonus(compRate) : 0;
                           return (
                             <td className="px-6 py-3">
@@ -1081,16 +1081,16 @@ export default function TherapistDashboard({
                         <td className="px-6 py-3 font-medium">
                           {(() => {
                             let total = Number(row.bonus_amount) + (therapist.isClinicalDirector || isDirector ? 0 : Number(row.eval_bonus || 0)) + Number(row.recruitment_bonus || 0);
-                            if (isDirector && !row.is_pto) {
+                            if (isDirector && row.scheduled) {
                               const compRate = getCompanyRateForWeek(row.week_start);
                               if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
                             }
-                            if (isPCC && !row.is_pto) {
+                            if (isPCC && row.scheduled) {
                               const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
                               const locArr = getLocationArrivalForWeek(row.week_start, loc);
                               if (locArr) total += locArr.bonus;
                             }
-                            if (isEquineDirector && !row.is_pto) {
+                            if (isEquineDirector && row.scheduled) {
                               const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
                               if (farmArr) total += farmArr.bonus;
                             }

@@ -45,7 +45,8 @@ function buildSummaries(submissions: Submission[]): TherapistSummary[] {
   }
 
   return THERAPISTS.map((t) => {
-    const subs = (bySlug[t.slug] || []).filter((s) => !s.is_pto && s.scheduled > 0);
+    // Include any week with actual patient data (scheduled > 0), regardless of PTO flag
+    const subs = (bySlug[t.slug] || []).filter((s) => s.scheduled > 0);
     const totalSched = subs.reduce((acc, s) => acc + s.scheduled, 0);
     const totalSeen = subs.reduce((acc, s) => acc + s.seen, 0);
     const totalAvail = subs.reduce((acc, s) => acc + (s.available || 0), 0);
@@ -87,7 +88,7 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
   }
 
   for (const sub of submissions) {
-    if (sub.is_pto || !sub.location_data) continue;
+    if (sub.scheduled === 0 || !sub.location_data) continue; // skip full PTO/empty weeks
     try {
       const ld: Record<string, { available: number; scheduled: number; seen: number }> = JSON.parse(sub.location_data);
       for (const [loc, vals] of Object.entries(ld)) {
@@ -102,7 +103,7 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
 
   // Also count single-location therapists who don't use location_data
   for (const sub of submissions) {
-    if (sub.is_pto || sub.location_data) continue;
+    if (sub.scheduled === 0 || sub.location_data) continue;
     const therapist = THERAPISTS.find((t) => t.slug === sub.therapist_slug);
     if (!therapist || therapist.workLocations.length !== 1) continue;
     const loc = therapist.workLocations[0];
