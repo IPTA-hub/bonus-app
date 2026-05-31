@@ -68,6 +68,14 @@ export async function initDb() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  // Overrides table — stores hours changes for any staff (hardcoded or custom)
+  await sql`
+    CREATE TABLE IF NOT EXISTS staff_hours_overrides (
+      slug VARCHAR(100) PRIMARY KEY,
+      hours_per_week DECIMAL(5,2) NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
 }
 
 export interface User {
@@ -402,6 +410,33 @@ export async function getCustomStaffBySlug(slug: string): Promise<CustomStaffRow
   const sql = getDb();
   const rows = await sql`SELECT * FROM custom_staff WHERE slug = ${slug} LIMIT 1`;
   return rows.length > 0 ? (rows[0] as unknown as CustomStaffRow) : null;
+}
+
+// ─── Hours overrides ──────────────────────────────────────────────────────────
+
+export async function upsertHoursOverride(slug: string, hoursPerWeek: number): Promise<void> {
+  const sql = getDb();
+  await sql`
+    INSERT INTO staff_hours_overrides (slug, hours_per_week, updated_at)
+    VALUES (${slug}, ${hoursPerWeek}, CURRENT_TIMESTAMP)
+    ON CONFLICT (slug) DO UPDATE SET
+      hours_per_week = EXCLUDED.hours_per_week,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function getHoursOverride(slug: string): Promise<number | null> {
+  const sql = getDb();
+  const rows = await sql`SELECT hours_per_week FROM staff_hours_overrides WHERE slug = ${slug} LIMIT 1`;
+  return rows.length > 0 ? Number(rows[0].hours_per_week) : null;
+}
+
+export async function getAllHoursOverrides(): Promise<Record<string, number>> {
+  const sql = getDb();
+  const rows = await sql`SELECT slug, hours_per_week FROM staff_hours_overrides`;
+  const result: Record<string, number> = {};
+  for (const r of rows) result[r.slug as string] = Number(r.hours_per_week);
+  return result;
 }
 
 export async function upsertCustomStaff(data: {

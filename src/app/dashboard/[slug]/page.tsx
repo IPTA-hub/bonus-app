@@ -1,8 +1,20 @@
 import { notFound } from "next/navigation";
-import { getTherapistBySlug } from "@/lib/therapists";
+import { getTherapistBySlug, customStaffRowToTherapist } from "@/lib/therapists";
+import { getCustomStaffBySlug, getHoursOverride, initDb } from "@/lib/db";
 import TherapistDashboard from "@/components/TherapistDashboard";
 import Link from "next/link";
 import { auth, type SessionWithRole } from "@/lib/auth";
+import type { Therapist } from "@/lib/therapists";
+
+function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
+  const isFullTime = newHours >= 32;
+  return {
+    ...therapist,
+    hoursPerWeek: newHours,
+    isFullTime,
+    proRateFactor: isFullTime ? 1.0 : Math.round((newHours / 40) * 10000) / 10000,
+  };
+}
 
 // Force dynamic so the page is never served from the router cache.
 // Without this, navigating back after an edit shows stale data because
@@ -15,8 +27,26 @@ export default async function TherapistDashboardPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const therapist = getTherapistBySlug(slug);
+  let therapist = getTherapistBySlug(slug);
+
+  // Check DB for custom-added staff
+  if (!therapist) {
+    try {
+      await initDb();
+      const customRow = await getCustomStaffBySlug(slug);
+      if (customRow) therapist = customStaffRowToTherapist(customRow);
+    } catch { /* DB unavailable */ }
+  }
+
   if (!therapist) notFound();
+
+  // Apply hours override if admin has updated this staff member's hours
+  try {
+    const hoursOverride = await getHoursOverride(slug);
+    if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
+      therapist = applyHoursOverride(therapist, hoursOverride);
+    }
+  } catch { /* DB unavailable */ }
 
   const session = (await auth()) as SessionWithRole | null;
   const userRole = session?.role || "therapist";

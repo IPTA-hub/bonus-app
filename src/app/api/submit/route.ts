@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug } from "@/lib/db";
+import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug, getHoursOverride } from "@/lib/db";
 import { getTherapistBySlug, customStaffRowToTherapist } from "@/lib/therapists";
+import type { Therapist } from "@/lib/therapists";
+
+function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
+  const FT_HOURS = 32;
+  const PRORATE_BASE = 40;
+  const isFullTime = newHours >= FT_HOURS;
+  return {
+    ...therapist,
+    hoursPerWeek: newHours,
+    isFullTime,
+    proRateFactor: isFullTime ? 1.0 : Math.round((newHours / PRORATE_BASE) * 10000) / 10000,
+  };
+}
 import { calculateBonus, getArrivalRate, calculateEvalBonus, calculateCDIndividualBonus, calculateNicoleIndividualBonus, calculateRecruitmentBonus, calculatePCCRescheduleBonus, calculatePCCEvalBonus, calculateEquineWalkBonus, calculateSponsorshipBonus, SPONSORSHIP_SLUG, MARKETING_SLUG, calculateMarketingReferralBonus, calculateMarketingMeetingBonus, calculateMarketingSponsorshipBonus } from "@/lib/bonus";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
@@ -45,6 +58,12 @@ export async function POST(request: NextRequest) {
         { error: "Therapist not found" },
         { status: 404 }
       );
+    }
+
+    // Apply hours override if admin has updated this staff member's hours
+    const hoursOverride = await getHoursOverride(therapist_slug);
+    if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
+      therapist = applyHoursOverride(therapist, hoursOverride);
     }
 
     // If location_data is provided (per-location breakdown), compute totals from it

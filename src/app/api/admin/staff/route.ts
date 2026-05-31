@@ -6,6 +6,7 @@ import {
   getAllCustomStaff,
   upsertCustomStaff,
   getArchivedSlugs,
+  getAllHoursOverrides,
   createUserIfNotExists,
 } from "@/lib/db";
 import { THERAPISTS } from "@/lib/therapists";
@@ -20,9 +21,10 @@ export async function GET() {
 
     await initDb();
 
-    const [customStaff, archivedSlugs] = await Promise.all([
+    const [customStaff, archivedSlugs, hoursOverrides] = await Promise.all([
       getAllCustomStaff(),
       getArchivedSlugs(),
+      getAllHoursOverrides(),
     ]);
 
     const archivedSet = new Set(archivedSlugs);
@@ -32,7 +34,7 @@ export async function GET() {
       slug: t.slug,
       name: t.name,
       role: t.role,
-      hoursPerWeek: t.hoursPerWeek,
+      hoursPerWeek: hoursOverrides[t.slug] ?? t.hoursPerWeek,
       workLocations: t.workLocations,
       email: t.email || "",
       hireDate: t.hireDate || "",

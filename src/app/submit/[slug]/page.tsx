@@ -1,6 +1,17 @@
 import { notFound } from "next/navigation";
 import { getTherapistBySlug, customStaffRowToTherapist, THERAPISTS } from "@/lib/therapists";
-import { getCustomStaffBySlug, getArchivedSlugs, initDb } from "@/lib/db";
+import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, initDb } from "@/lib/db";
+import type { Therapist } from "@/lib/therapists";
+
+function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
+  const isFullTime = newHours >= 32;
+  return {
+    ...therapist,
+    hoursPerWeek: newHours,
+    isFullTime,
+    proRateFactor: isFullTime ? 1.0 : Math.round((newHours / 40) * 10000) / 10000,
+  };
+}
 import SubmitForm from "@/components/SubmitForm";
 import WeeklyReminder from "@/components/WeeklyReminder";
 import Link from "next/link";
@@ -35,6 +46,14 @@ export default async function SubmitPage({
     const archivedSlugs = await getArchivedSlugs();
     if (archivedSlugs.includes(slug)) notFound();
   } catch { /* DB unavailable — allow access */ }
+
+  // Apply hours override if admin has updated this staff member's hours
+  try {
+    const hoursOverride = await getHoursOverride(slug);
+    if (therapist && hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
+      therapist = applyHoursOverride(therapist, hoursOverride);
+    }
+  } catch { /* DB unavailable */ }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">

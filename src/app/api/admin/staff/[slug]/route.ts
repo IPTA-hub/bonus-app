@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, type SessionWithRole } from "@/lib/auth";
-import { initDb, setUserArchived } from "@/lib/db";
+import { initDb, setUserArchived, upsertHoursOverride, getCustomStaffBySlug, upsertCustomStaff } from "@/lib/db";
 
 export async function PATCH(
   request: NextRequest,
@@ -15,13 +15,36 @@ export async function PATCH(
     await initDb();
 
     const { slug } = await params;
-    const { archived } = await request.json();
+    const body = await request.json();
 
-    await setUserArchived(slug, Boolean(archived));
+    // Handle archive/restore
+    if (body.archived !== undefined) {
+      await setUserArchived(slug, Boolean(body.archived));
+      return NextResponse.json({ success: true, slug, archived: Boolean(body.archived) });
+    }
 
-    return NextResponse.json({ success: true, slug, archived: Boolean(archived) });
+    // Handle hours update
+    if (body.hoursPerWeek !== undefined) {
+      const newHours = Number(body.hoursPerWeek);
+      if (isNaN(newHours) || newHours <= 0) {
+        return NextResponse.json({ error: "Invalid hours value" }, { status: 400 });
+      }
+
+      // For custom staff: update the custom_staff record directly so all fields stay in sync
+      const customRow = await getCustomStaffBySlug(slug);
+      if (customRow) {
+        await upsertCustomStaff({ ...customRow, hours_per_week: newHours });
+      }
+
+      // Always write to overrides table (covers hardcoded staff too; submit API reads this)
+      await upsertHoursOverride(slug, newHours);
+
+      return NextResponse.json({ success: true, slug, hoursPerWeek: newHours });
+    }
+
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   } catch (error) {
-    console.error("Archive staff error:", error);
-    return NextResponse.json({ error: "Failed to update staff status" }, { status: 500 });
+    console.error("Update staff error:", error);
+    return NextResponse.json({ error: "Failed to update staff" }, { status: 500 });
   }
 }

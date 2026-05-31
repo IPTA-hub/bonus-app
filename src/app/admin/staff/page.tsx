@@ -62,6 +62,12 @@ export default function StaffManagementPage() {
     }
   }
 
+  function handleHoursUpdated(slug: string, newHours: number) {
+    setStaff((prev) =>
+      prev.map((s) => (s.slug === slug ? { ...s, hoursPerWeek: newHours } : s))
+    );
+  }
+
   async function handleArchive(slug: string, archive: boolean) {
     setArchiving(slug);
     try {
@@ -314,6 +320,7 @@ export default function StaffManagementPage() {
                   staff={s}
                   archiving={archiving === s.slug}
                   onArchive={() => handleArchive(s.slug, true)}
+                  onHoursUpdated={handleHoursUpdated}
                 />
               ))}
             </div>
@@ -340,6 +347,7 @@ export default function StaffManagementPage() {
                     staff={s}
                     archiving={archiving === s.slug}
                     onUnarchive={() => handleArchive(s.slug, false)}
+                    onHoursUpdated={handleHoursUpdated}
                     isArchived
                   />
                 ))}
@@ -357,62 +365,135 @@ function StaffRow({
   archiving,
   onArchive,
   onUnarchive,
+  onHoursUpdated,
   isArchived = false,
 }: {
   staff: StaffMember;
   archiving: boolean;
   onArchive?: () => void;
   onUnarchive?: () => void;
+  onHoursUpdated?: (slug: string, newHours: number) => void;
   isArchived?: boolean;
 }) {
+  const [editingHours, setEditingHours] = useState(false);
+  const [hoursInput, setHoursInput] = useState(String(s.hoursPerWeek));
+  const [savingHours, setSavingHours] = useState(false);
+  const [hoursError, setHoursError] = useState("");
+
+  async function saveHours() {
+    const newHours = parseFloat(hoursInput);
+    if (isNaN(newHours) || newHours <= 0 || newHours > 60) {
+      setHoursError("Enter a valid number (1–60)");
+      return;
+    }
+    setSavingHours(true);
+    setHoursError("");
+    try {
+      const res = await fetch(`/api/admin/staff/${s.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hoursPerWeek: newHours }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      onHoursUpdated?.(s.slug, newHours);
+      setEditingHours(false);
+    } catch {
+      setHoursError("Save failed. Try again.");
+    } finally {
+      setSavingHours(false);
+    }
+  }
+
   return (
-    <div className={`px-6 py-3 flex items-center justify-between gap-4 ${isArchived ? "opacity-60" : ""}`}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-gray-900 text-sm">{s.name}</span>
-          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
-            {s.role}
-          </span>
-          {s.isClinicalDirector && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-              CD
+    <div className={`px-6 py-3 ${isArchived ? "opacity-60" : ""}`}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-gray-900 text-sm">{s.name}</span>
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
+              {s.role}
             </span>
+            {s.isClinicalDirector && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">CD</span>
+            )}
+            {s.noBonus && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">No Bonus</span>
+            )}
+            {s.isCustom && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Added</span>
+            )}
+          </div>
+
+          {/* Hours row — inline edit */}
+          <div className="flex items-center gap-2 mt-1">
+            {editingHours ? (
+              <>
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  step="0.25"
+                  value={hoursInput}
+                  onChange={(e) => { setHoursInput(e.target.value); setHoursError(""); }}
+                  className="w-20 px-2 py-0.5 text-xs border border-ipta-teal rounded focus:ring-1 focus:ring-ipta-teal"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") saveHours(); if (e.key === "Escape") setEditingHours(false); }}
+                />
+                <span className="text-xs text-gray-500">hrs/wk</span>
+                <button
+                  onClick={saveHours}
+                  disabled={savingHours}
+                  className="px-2 py-0.5 text-xs font-medium text-white bg-ipta-teal rounded hover:bg-ipta-teal-light disabled:opacity-50 transition"
+                >
+                  {savingHours ? "..." : "Save"}
+                </button>
+                <button
+                  onClick={() => { setEditingHours(false); setHoursInput(String(s.hoursPerWeek)); setHoursError(""); }}
+                  className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                {hoursError && <span className="text-xs text-red-600">{hoursError}</span>}
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-gray-400">
+                  {s.hoursPerWeek} hrs/wk · {s.workLocations.join(", ") || "—"}
+                  {s.email && ` · ${s.email}`}
+                </span>
+                {!isArchived && (
+                  <button
+                    onClick={() => { setEditingHours(true); setHoursInput(String(s.hoursPerWeek)); }}
+                    className="text-xs text-ipta-teal hover:underline"
+                  >
+                    Edit hours
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-shrink-0">
+          {!isArchived && onArchive && (
+            <button
+              onClick={onArchive}
+              disabled={archiving}
+              className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition"
+            >
+              {archiving ? "..." : "Archive"}
+            </button>
           )}
-          {s.noBonus && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-              No Bonus
-            </span>
-          )}
-          {s.isCustom && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-              Added
-            </span>
+          {isArchived && onUnarchive && (
+            <button
+              onClick={onUnarchive}
+              disabled={archiving}
+              className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 transition"
+            >
+              {archiving ? "..." : "Restore"}
+            </button>
           )}
         </div>
-        <p className="text-xs text-gray-400 mt-0.5">
-          {s.hoursPerWeek} hrs · {s.workLocations.join(", ") || "—"}
-          {s.email && ` · ${s.email}`}
-        </p>
-      </div>
-      <div className="flex-shrink-0">
-        {!isArchived && onArchive && (
-          <button
-            onClick={onArchive}
-            disabled={archiving}
-            className="px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition"
-          >
-            {archiving ? "..." : "Archive"}
-          </button>
-        )}
-        {isArchived && onUnarchive && (
-          <button
-            onClick={onUnarchive}
-            disabled={archiving}
-            className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 transition"
-          >
-            {archiving ? "..." : "Restore"}
-          </button>
-        )}
       </div>
     </div>
   );
