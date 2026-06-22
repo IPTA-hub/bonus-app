@@ -22,7 +22,7 @@ interface LocationEntry {
   seen: string;
 }
 
-export default function SubmitForm({ therapist }: { therapist: Therapist }) {
+export default function SubmitForm({ therapist, adminAvailable }: { therapist: Therapist; adminAvailable?: number }) {
   const [weekStart, setWeekStart] = useState(getMondayOfWeek(new Date()));
   // Single-location fields (fallback when no locations selected)
   const [available, setAvailable] = useState(String(therapist.expectedVisits));
@@ -80,6 +80,8 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
   const isNoBonus = !!therapist.noBonus;
   const hasSponsorshipBonus = therapist.slug === SPONSORSHIP_SLUG;
   const hidePatientTracking = isPCC || isPCCAssistant || isEquine || isMarketing;
+  // True when admin has locked available slots — hides available inputs from staff
+  const availIsAdminSet = adminAvailable !== undefined && adminAvailable !== null;
 
   const [result, setResult] = useState<{
     success: boolean;
@@ -415,17 +417,18 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
         for (const loc of selectedLocations) {
           const entry = locationEntries[loc] || { available: "0", scheduled: "0", seen: "0" };
           locData[loc] = {
-            available: parseInt(entry.available) || 0,
+            // When admin controls available, store 0 — API will use the override value
+            available: availIsAdminSet ? 0 : (parseInt(entry.available) || 0),
             scheduled: parseInt(entry.scheduled) || 0,
             seen: parseInt(entry.seen) || 0,
           };
         }
         requestBody.location_data = locData;
-        requestBody.available = locTotalAvailable;
+        requestBody.available = availIsAdminSet ? 0 : locTotalAvailable;
         requestBody.scheduled = locTotalScheduled;
         requestBody.seen = locTotalSeen;
       } else {
-        requestBody.available = parseInt(available) || 0;
+        requestBody.available = availIsAdminSet ? 0 : (parseInt(available) || 0);
         requestBody.scheduled = parseInt(scheduled) || 0;
         requestBody.seen = parseInt(seen) || 0;
       }
@@ -582,6 +585,14 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
               {hasLocations ? (
                 /* ---- Per-Location Fields (always shown when locations selected) ---- */
                 <div className="space-y-4">
+                  {availIsAdminSet && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                      <span className="text-blue-700 text-sm font-medium">
+                        Available appointments: <span className="font-bold">{adminAvailable}</span> per week
+                      </span>
+                      <span className="text-xs text-blue-500">(set by your admin)</span>
+                    </div>
+                  )}
                   {isMultiLocation && (
                     <p className="text-sm text-ipta-teal bg-ipta-teal-50 border border-ipta-teal-100 rounded-lg px-3 py-2">
                       Enter data separately for each location you worked this week.
@@ -608,22 +619,24 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                           />
                           {loc}
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Available
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={entry.available}
-                              onChange={(e) =>
-                                updateLocationEntry(loc, "available", e.target.value)
-                              }
-                              className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
-                              placeholder="0"
-                            />
-                          </div>
+                        <div className={`grid grid-cols-1 gap-3 ${availIsAdminSet ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+                          {!availIsAdminSet && (
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Available
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={entry.available}
+                                onChange={(e) =>
+                                  updateLocationEntry(loc, "available", e.target.value)
+                                }
+                                className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+                                placeholder="0"
+                              />
+                            </div>
+                          )}
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
                               Scheduled
@@ -661,10 +674,15 @@ export default function SubmitForm({ therapist }: { therapist: Therapist }) {
                   {/* Totals row (show when multi-location) */}
                   {isMultiLocation && (
                     <div className="border border-ipta-teal-100 rounded-lg p-3 bg-ipta-teal-50">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                      <div className={`grid grid-cols-1 gap-3 text-center ${availIsAdminSet ? "sm:grid-cols-3" : "sm:grid-cols-3"}`}>
                         <div>
                           <p className="text-xs text-ipta-teal font-medium">Total Available</p>
-                          <p className="text-lg font-bold text-ipta-teal">{locTotalAvailable}</p>
+                          <p className="text-lg font-bold text-ipta-teal">
+                            {availIsAdminSet ? adminAvailable : locTotalAvailable}
+                          </p>
+                          {availIsAdminSet && (
+                            <p className="text-xs text-blue-500">admin-set</p>
+                          )}
                         </div>
                         <div>
                           <p className="text-xs text-ipta-teal font-medium">Total Scheduled</p>

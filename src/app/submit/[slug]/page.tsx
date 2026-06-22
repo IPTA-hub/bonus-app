@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTherapistBySlug, customStaffRowToTherapist, THERAPISTS } from "@/lib/therapists";
-import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, initDb } from "@/lib/db";
+import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, getAvailableOverride, initDb } from "@/lib/db";
 import type { Therapist } from "@/lib/therapists";
 
 function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
@@ -55,6 +55,12 @@ export default async function SubmitPage({
     }
   } catch { /* DB unavailable */ }
 
+  // Fetch admin-set available slots (null if not set — form stays editable)
+  let adminAvailable: number | null = null;
+  try {
+    adminAvailable = await getAvailableOverride(slug);
+  } catch { /* DB unavailable */ }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
       <div className="max-w-lg mx-auto mb-6">
@@ -69,7 +75,7 @@ export default async function SubmitPage({
         <WeeklyReminder slug={slug} />
       </div>
       <Suspense fallback={<div className="max-w-lg mx-auto py-8 text-center text-gray-400">Loading...</div>}>
-        <SubmitForm therapist={therapist} />
+        <SubmitForm therapist={therapist} adminAvailable={adminAvailable ?? undefined} />
       </Suspense>
       <div className="max-w-lg mx-auto mt-4 text-center">
         <Link

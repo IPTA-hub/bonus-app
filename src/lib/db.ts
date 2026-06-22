@@ -76,6 +76,14 @@ export async function initDb() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  // Overrides table — admin-set available appointment slots per therapist per week
+  await sql`
+    CREATE TABLE IF NOT EXISTS staff_available_overrides (
+      slug VARCHAR(100) PRIMARY KEY,
+      available_slots INTEGER NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
 }
 
 export interface User {
@@ -436,6 +444,33 @@ export async function getAllHoursOverrides(): Promise<Record<string, number>> {
   const rows = await sql`SELECT slug, hours_per_week FROM staff_hours_overrides`;
   const result: Record<string, number> = {};
   for (const r of rows) result[r.slug as string] = Number(r.hours_per_week);
+  return result;
+}
+
+// ─── Available slot overrides ─────────────────────────────────────────────────
+
+export async function upsertAvailableOverride(slug: string, availableSlots: number): Promise<void> {
+  const sql = getDb();
+  await sql`
+    INSERT INTO staff_available_overrides (slug, available_slots, updated_at)
+    VALUES (${slug}, ${availableSlots}, CURRENT_TIMESTAMP)
+    ON CONFLICT (slug) DO UPDATE SET
+      available_slots = EXCLUDED.available_slots,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function getAvailableOverride(slug: string): Promise<number | null> {
+  const sql = getDb();
+  const rows = await sql`SELECT available_slots FROM staff_available_overrides WHERE slug = ${slug} LIMIT 1`;
+  return rows.length > 0 ? Number(rows[0].available_slots) : null;
+}
+
+export async function getAllAvailableOverrides(): Promise<Record<string, number>> {
+  const sql = getDb();
+  const rows = await sql`SELECT slug, available_slots FROM staff_available_overrides`;
+  const result: Record<string, number> = {};
+  for (const r of rows) result[r.slug as string] = Number(r.available_slots);
   return result;
 }
 

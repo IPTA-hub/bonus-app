@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, type SessionWithRole } from "@/lib/auth";
-import { initDb, setUserArchived, upsertHoursOverride, getCustomStaffBySlug, upsertCustomStaff } from "@/lib/db";
+import { initDb, setUserArchived, upsertHoursOverride, upsertAvailableOverride, getCustomStaffBySlug, upsertCustomStaff } from "@/lib/db";
 
 export async function PATCH(
   request: NextRequest,
@@ -40,6 +40,16 @@ export async function PATCH(
       await upsertHoursOverride(slug, newHours);
 
       return NextResponse.json({ success: true, slug, hoursPerWeek: newHours });
+    }
+
+    // Handle available slots update
+    if (body.availableSlots !== undefined) {
+      const newSlots = Number(body.availableSlots);
+      if (isNaN(newSlots) || newSlots < 0) {
+        return NextResponse.json({ error: "Invalid available slots value" }, { status: 400 });
+      }
+      await upsertAvailableOverride(slug, newSlots);
+      return NextResponse.json({ success: true, slug, availableSlots: newSlots });
     }
 
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

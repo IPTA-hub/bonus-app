@@ -7,6 +7,7 @@ import {
   upsertCustomStaff,
   getArchivedSlugs,
   getAllHoursOverrides,
+  getAllAvailableOverrides,
   createUserIfNotExists,
 } from "@/lib/db";
 import { THERAPISTS } from "@/lib/therapists";
@@ -21,10 +22,11 @@ export async function GET() {
 
     await initDb();
 
-    const [customStaff, archivedSlugs, hoursOverrides] = await Promise.all([
+    const [customStaff, archivedSlugs, hoursOverrides, availableOverrides] = await Promise.all([
       getAllCustomStaff(),
       getArchivedSlugs(),
       getAllHoursOverrides(),
+      getAllAvailableOverrides(),
     ]);
 
     const archivedSet = new Set(archivedSlugs);
@@ -35,6 +37,7 @@ export async function GET() {
       name: t.name,
       role: t.role,
       hoursPerWeek: hoursOverrides[t.slug] ?? t.hoursPerWeek,
+      availableSlots: availableOverrides[t.slug] ?? null,
       workLocations: t.workLocations,
       email: t.email || "",
       hireDate: t.hireDate || "",
@@ -50,6 +53,7 @@ export async function GET() {
       name: c.name,
       role: c.role,
       hoursPerWeek: Number(c.hours_per_week),
+      availableSlots: availableOverrides[c.slug] ?? null,
       workLocations: c.work_locations ? c.work_locations.split(",").filter(Boolean) : [],
       email: c.email || "",
       hireDate: c.hire_date || "",

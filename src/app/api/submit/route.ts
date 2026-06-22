@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug, getHoursOverride } from "@/lib/db";
+import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug, getHoursOverride, getAvailableOverride } from "@/lib/db";
 import { getTherapistBySlug, customStaffRowToTherapist } from "@/lib/therapists";
 import type { Therapist } from "@/lib/therapists";
 
@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
       therapist = applyHoursOverride(therapist, hoursOverride);
     }
 
+    // Check if admin has set a fixed available slots value for this therapist
+    const availableOverride = await getAvailableOverride(therapist_slug);
+
     // If location_data is provided (per-location breakdown), compute totals from it
     let avail: number;
     let sched: number;
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
     let locationDataStr = "";
 
     if (location_data && typeof location_data === "object" && Object.keys(location_data).length > 0) {
-      // Sum up per-location values for the totals
+      // Sum up per-location scheduled/seen; available comes from admin override if set
       avail = 0;
       sched = 0;
       seenCount = 0;
@@ -87,6 +90,11 @@ export async function POST(request: NextRequest) {
       avail = parseInt(available) || 0;
       sched = parseInt(scheduled) || 0;
       seenCount = parseInt(seen) || 0;
+    }
+
+    // Admin-set available overrides whatever the form submitted
+    if (availableOverride !== null) {
+      avail = availableOverride;
     }
     const pto = Boolean(is_pto);
     const evalsCount = parseInt(evals_completed) || 0;

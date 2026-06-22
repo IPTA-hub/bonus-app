@@ -10,6 +10,7 @@ interface StaffMember {
   name: string;
   role: string;
   hoursPerWeek: number;
+  availableSlots: number | null;
   workLocations: string[];
   email: string;
   hireDate: string;
@@ -65,6 +66,12 @@ export default function StaffManagementPage() {
   function handleHoursUpdated(slug: string, newHours: number) {
     setStaff((prev) =>
       prev.map((s) => (s.slug === slug ? { ...s, hoursPerWeek: newHours } : s))
+    );
+  }
+
+  function handleAvailableUpdated(slug: string, newSlots: number) {
+    setStaff((prev) =>
+      prev.map((s) => (s.slug === slug ? { ...s, availableSlots: newSlots } : s))
     );
   }
 
@@ -321,6 +328,7 @@ export default function StaffManagementPage() {
                   archiving={archiving === s.slug}
                   onArchive={() => handleArchive(s.slug, true)}
                   onHoursUpdated={handleHoursUpdated}
+                  onAvailableUpdated={handleAvailableUpdated}
                 />
               ))}
             </div>
@@ -348,6 +356,7 @@ export default function StaffManagementPage() {
                     archiving={archiving === s.slug}
                     onUnarchive={() => handleArchive(s.slug, false)}
                     onHoursUpdated={handleHoursUpdated}
+                    onAvailableUpdated={handleAvailableUpdated}
                     isArchived
                   />
                 ))}
@@ -366,6 +375,7 @@ function StaffRow({
   onArchive,
   onUnarchive,
   onHoursUpdated,
+  onAvailableUpdated,
   isArchived = false,
 }: {
   staff: StaffMember;
@@ -373,12 +383,18 @@ function StaffRow({
   onArchive?: () => void;
   onUnarchive?: () => void;
   onHoursUpdated?: (slug: string, newHours: number) => void;
+  onAvailableUpdated?: (slug: string, newSlots: number) => void;
   isArchived?: boolean;
 }) {
   const [editingHours, setEditingHours] = useState(false);
   const [hoursInput, setHoursInput] = useState(String(s.hoursPerWeek));
   const [savingHours, setSavingHours] = useState(false);
   const [hoursError, setHoursError] = useState("");
+
+  const [editingAvailable, setEditingAvailable] = useState(false);
+  const [availableInput, setAvailableInput] = useState(String(s.availableSlots ?? ""));
+  const [savingAvailable, setSavingAvailable] = useState(false);
+  const [availableError, setAvailableError] = useState("");
 
   async function saveHours() {
     const newHours = parseFloat(hoursInput);
@@ -401,6 +417,30 @@ function StaffRow({
       setHoursError("Save failed. Try again.");
     } finally {
       setSavingHours(false);
+    }
+  }
+
+  async function saveAvailable() {
+    const newSlots = parseInt(availableInput);
+    if (isNaN(newSlots) || newSlots < 0) {
+      setAvailableError("Enter a valid number (0 or more)");
+      return;
+    }
+    setSavingAvailable(true);
+    setAvailableError("");
+    try {
+      const res = await fetch(`/api/admin/staff/${s.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ availableSlots: newSlots }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      onAvailableUpdated?.(s.slug, newSlots);
+      setEditingAvailable(false);
+    } catch {
+      setAvailableError("Save failed. Try again.");
+    } finally {
+      setSavingAvailable(false);
     }
   }
 
@@ -467,6 +507,56 @@ function StaffRow({
                     className="text-xs text-ipta-teal hover:underline"
                   >
                     Edit hours
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Available slots row — inline edit */}
+          <div className="flex items-center gap-2 mt-0.5">
+            {editingAvailable ? (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  step="1"
+                  value={availableInput}
+                  onChange={(e) => { setAvailableInput(e.target.value); setAvailableError(""); }}
+                  className="w-20 px-2 py-0.5 text-xs border border-ipta-teal rounded focus:ring-1 focus:ring-ipta-teal"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") saveAvailable(); if (e.key === "Escape") setEditingAvailable(false); }}
+                />
+                <span className="text-xs text-gray-500">available appt/wk</span>
+                <button
+                  onClick={saveAvailable}
+                  disabled={savingAvailable}
+                  className="px-2 py-0.5 text-xs font-medium text-white bg-ipta-teal rounded hover:bg-ipta-teal-light disabled:opacity-50 transition"
+                >
+                  {savingAvailable ? "..." : "Save"}
+                </button>
+                <button
+                  onClick={() => { setEditingAvailable(false); setAvailableInput(String(s.availableSlots ?? "")); setAvailableError(""); }}
+                  className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                {availableError && <span className="text-xs text-red-600">{availableError}</span>}
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-gray-400">
+                  {s.availableSlots !== null && s.availableSlots !== undefined
+                    ? `${s.availableSlots} available appt/wk`
+                    : "Available appt/wk: not set"}
+                </span>
+                {!isArchived && (
+                  <button
+                    onClick={() => { setEditingAvailable(true); setAvailableInput(String(s.availableSlots ?? "")); }}
+                    className="text-xs text-ipta-teal hover:underline"
+                  >
+                    {s.availableSlots !== null && s.availableSlots !== undefined ? "Edit" : "Set available"}
                   </button>
                 )}
               </>
