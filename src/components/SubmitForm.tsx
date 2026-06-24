@@ -530,7 +530,7 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
           </div>
 
           {isPto && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
               <p className="text-sm font-medium text-amber-900">
                 Is your caseload 90% full or more?
               </p>
@@ -558,6 +558,9 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
                   No
                 </button>
               </div>
+              <p className="text-xs text-amber-800">
+                If you worked any hours this week, enter your data below. You can still earn your bonus if you completed 50% or more of your available appointments.
+              </p>
             </div>
           )}
 
@@ -1559,23 +1562,22 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
                               year: "numeric",
                             })}
                           </span>
-                          {row.is_pto ? (
-                            <>
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                                PTO
-                              </span>
-                              {row.pto_caseload_full === true && (
-                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
-                                  Caseload ≥90%
-                                </span>
-                              )}
-                              {row.pto_caseload_full === false && (
-                                <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                                  Caseload &lt;90%
-                                </span>
-                              )}
-                            </>
-                          ) : (
+                          {row.is_pto && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                              PTO
+                            </span>
+                          )}
+                          {row.is_pto && !row.scheduled && row.pto_caseload_full === true && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                              Caseload ≥90%
+                            </span>
+                          )}
+                          {row.is_pto && !row.scheduled && row.pto_caseload_full === false && (
+                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                              Caseload &lt;90%
+                            </span>
+                          )}
+                          {!!row.scheduled && (
                             <>
                               {row.arrival_rate !== null && (
                                 <span
@@ -1604,7 +1606,7 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
                             </>
                           )}
                         </div>
-                        {!row.is_pto && !isMarketing && (
+                        {!!row.scheduled && !isMarketing && (
                           <p className="text-xs text-gray-500 mt-0.5">
                             Avail: {row.available} | Sched: {row.scheduled} | Seen: {row.seen}
                             {row.locations && ` | ${row.locations}`}

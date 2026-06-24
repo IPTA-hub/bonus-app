@@ -177,6 +177,7 @@ export default function TherapistDashboard({
               <p className="text-xs text-purple-600 font-medium uppercase">Company Productivity</p>
               <p className="text-xl font-bold text-purple-700">
                 ${data.reduce((a, s) => {
+                  if (!s.scheduled) return a;
                   const rate = getCompanyRateForWeek(s.week_start);
                   return a + (rate !== null ? calculateCompanyProductivityBonus(rate) : 0);
                 }, 0).toFixed(0)}
@@ -196,6 +197,7 @@ export default function TherapistDashboard({
                 ${(
                   data.reduce((a, s) => a + (Number(s.bonus_amount) || 0) + (Number(s.recruitment_bonus) || 0), 0) +
                   data.reduce((a, s) => {
+                    if (!s.scheduled) return a;
                     const rate = getCompanyRateForWeek(s.week_start);
                     return a + (rate !== null ? calculateCompanyProductivityBonus(rate) : 0);
                   }, 0)
