@@ -6,7 +6,21 @@ export function getDb() {
   return neon(url);
 }
 
-export async function initDb() {
+// Run migrations exactly once per server process; subsequent calls are instant no-ops.
+let initDbPromise: Promise<void> | null = null;
+
+export function initDb(): Promise<void> {
+  if (!initDbPromise) {
+    initDbPromise = _runMigrations().catch((err) => {
+      // Reset so the next request retries (e.g. transient cold-start failure)
+      initDbPromise = null;
+      throw err;
+    });
+  }
+  return initDbPromise;
+}
+
+async function _runMigrations() {
   const sql = getDb();
   await sql`
     CREATE TABLE IF NOT EXISTS submissions (
