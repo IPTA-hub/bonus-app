@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initDb, getSubmissions, getAllSubmissions } from "@/lib/db";
+import { getSubmissions, getAllSubmissions } from "@/lib/db";
 import { auth, type SessionWithRole } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    await initDb();
     const session = (await auth()) as SessionWithRole | null;
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

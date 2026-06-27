@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTherapistBySlug, customStaffRowToTherapist } from "@/lib/therapists";
-import { getCustomStaffBySlug, getHoursOverride, initDb } from "@/lib/db";
+import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, initDb } from "@/lib/db";
 import TherapistDashboard from "@/components/TherapistDashboard";
 import Link from "next/link";
 import { auth, type SessionWithRole } from "@/lib/auth";
@@ -16,9 +16,6 @@ function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
   };
 }
 
-// Force dynamic so the page is never served from the router cache.
-// Without this, navigating back after an edit shows stale data because
-// Next.js restores the cached page and the useEffect fetch never re-runs.
 export const dynamic = "force-dynamic";
 
 export default async function TherapistDashboardPage({
@@ -27,29 +24,39 @@ export default async function TherapistDashboardPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  let therapist = getTherapistBySlug(slug);
 
-  // Check DB for custom-added staff
-  if (!therapist) {
-    try {
+  // Run auth and DB lookups in parallel
+  const [sessionResult, dbResult] = await Promise.allSettled([
+    auth(),
+    (async () => {
       await initDb();
-      const customRow = await getCustomStaffBySlug(slug);
-      if (customRow) therapist = customStaffRowToTherapist(customRow);
-    } catch { /* DB unavailable */ }
-  }
+      const [customRow, archivedSlugs, hoursOverride] = await Promise.all([
+        getCustomStaffBySlug(slug),
+        getArchivedSlugs(),
+        getHoursOverride(slug),
+      ]);
+      return { customRow, archivedSlugs, hoursOverride };
+    })(),
+  ]);
+
+  const session = sessionResult.status === "fulfilled"
+    ? (sessionResult.value as SessionWithRole | null)
+    : null;
+  const userRole = session?.role || "therapist";
+
+  const { customRow, archivedSlugs, hoursOverride } =
+    dbResult.status === "fulfilled"
+      ? dbResult.value
+      : { customRow: null, archivedSlugs: [] as string[], hoursOverride: null };
+
+  let therapist = getTherapistBySlug(slug) ?? (customRow ? customStaffRowToTherapist(customRow) : null);
 
   if (!therapist) notFound();
+  if (archivedSlugs.includes(slug)) notFound();
 
-  // Apply hours override if admin has updated this staff member's hours
-  try {
-    const hoursOverride = await getHoursOverride(slug);
-    if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
-      therapist = applyHoursOverride(therapist, hoursOverride);
-    }
-  } catch { /* DB unavailable */ }
-
-  const session = (await auth()) as SessionWithRole | null;
-  const userRole = session?.role || "therapist";
+  if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
+    therapist = applyHoursOverride(therapist, hoursOverride);
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
