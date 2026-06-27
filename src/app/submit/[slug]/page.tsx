@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import { getTherapistBySlug, customStaffRowToTherapist, THERAPISTS } from "@/lib/therapists";
 import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, getAvailableOverride, initDb } from "@/lib/db";
 import type { Therapist } from "@/lib/therapists";
+import SubmitForm from "@/components/SubmitForm";
+import WeeklyReminder from "@/components/WeeklyReminder";
+import Link from "next/link";
+import { Suspense } from "react";
 
 function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
   const isFullTime = newHours >= 32;
@@ -12,10 +16,6 @@ function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
     proRateFactor: isFullTime ? 1.0 : Math.round((newHours / 40) * 10000) / 10000,
   };
 }
-import SubmitForm from "@/components/SubmitForm";
-import WeeklyReminder from "@/components/WeeklyReminder";
-import Link from "next/link";
-import { Suspense } from "react";
 
 export function generateStaticParams() {
   return THERAPISTS.map((t) => ({ slug: t.slug }));
@@ -30,36 +30,34 @@ export default async function SubmitPage({
 
   let therapist = getTherapistBySlug(slug);
 
+  // All DB lookups run in parallel
+  const [customRow, archivedSlugs, hoursOverride, adminAvailable] = await Promise.all([
+    therapist ? Promise.resolve(null) : getCustomStaffBySlug(slug).catch(() => null),
+    getArchivedSlugs().catch(() => [] as string[]),
+    getHoursOverride(slug).catch(() => null),
+    getAvailableOverride(slug).catch(() => null),
+  ]);
+
+  // Ensure DB is initialized for custom staff (no-op after first call)
   if (!therapist) {
-    // Check DB for custom-added staff
-    try {
-      await initDb();
-      const customRow = await getCustomStaffBySlug(slug);
-      if (customRow) therapist = customStaffRowToTherapist(customRow);
-    } catch { /* DB unavailable */ }
+    if (customRow) {
+      therapist = customStaffRowToTherapist(customRow);
+    } else {
+      // Only try initDb + custom staff lookup if not found above
+      try {
+        await initDb();
+        const row = await getCustomStaffBySlug(slug);
+        if (row) therapist = customStaffRowToTherapist(row);
+      } catch { /* DB unavailable */ }
+    }
   }
 
   if (!therapist) notFound();
+  if (archivedSlugs.includes(slug)) notFound();
 
-  // Block access for archived staff
-  try {
-    const archivedSlugs = await getArchivedSlugs();
-    if (archivedSlugs.includes(slug)) notFound();
-  } catch { /* DB unavailable — allow access */ }
-
-  // Apply hours override if admin has updated this staff member's hours
-  try {
-    const hoursOverride = await getHoursOverride(slug);
-    if (therapist && hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
-      therapist = applyHoursOverride(therapist, hoursOverride);
-    }
-  } catch { /* DB unavailable */ }
-
-  // Fetch admin-set available slots (null if not set — form stays editable)
-  let adminAvailable: number | null = null;
-  try {
-    adminAvailable = await getAvailableOverride(slug);
-  } catch { /* DB unavailable */ }
+  if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
+    therapist = applyHoursOverride(therapist, hoursOverride);
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
