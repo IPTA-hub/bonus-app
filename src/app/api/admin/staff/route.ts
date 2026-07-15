@@ -21,12 +21,14 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    await initDb();
+
     const [customStaff, archivedSlugs, hoursOverrides, availableOverrides, settingsOverrides] = await Promise.all([
       getAllCustomStaff(),
       getArchivedSlugs(),
       getAllHoursOverrides(),
       getAllAvailableOverrides(),
-      getAllSettingsOverrides(),
+      getAllSettingsOverrides().catch(() => ({} as Record<string, { work_locations: string; no_bonus: boolean }>)),
     ]);
 
     const archivedSet = new Set(archivedSlugs);
