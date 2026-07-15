@@ -116,7 +116,8 @@ export const CD_ANNUAL_CAP = 8000;
 // Minimum 5 patients/week to qualify
 // 95-99.99% = $75, 100-109.99% = $100, 110%+ = $125
 
-export const CD_MIN_PATIENTS = 5;
+// Minimum scheduled/available utilization to qualify (replaces the old 5-patient minimum)
+export const CD_MIN_UTILIZATION = 0.90;
 
 export const CD_INDIVIDUAL_TIERS: (BonusTier & { amount: number })[] = [
   { min: 1.1, max: Infinity, amount: 125, label: "110%+" },
@@ -126,9 +127,9 @@ export const CD_INDIVIDUAL_TIERS: (BonusTier & { amount: number })[] = [
 
 export function calculateCDIndividualBonus(
   arrivalRate: number,
-  seenCount: number
+  utilizationRate: number | null
 ): number {
-  if (seenCount < CD_MIN_PATIENTS) return 0;
+  if (utilizationRate === null || utilizationRate < CD_MIN_UTILIZATION) return 0;
   for (const tier of CD_INDIVIDUAL_TIERS) {
     if (arrivalRate >= tier.min) {
       return tier.amount;

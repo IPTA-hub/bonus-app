@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
           // Nicole Summerson — individual productivity bonus (Bonus 3)
           bonusAmount = calculateNicoleIndividualBonus(arrivalRate, seenCount);
         } else if (therapist.isClinicalDirector) {
-          // Clinical directors use their own individual bonus tiers
-          bonusAmount = calculateCDIndividualBonus(arrivalRate, seenCount);
+          // Clinical directors qualify when scheduled >= 90% of available
+          bonusAmount = calculateCDIndividualBonus(arrivalRate, utilizationRate);
         } else {
           bonusAmount = calculateBonus(arrivalRate, therapist.hoursPerWeek, utilizationRate);
         }

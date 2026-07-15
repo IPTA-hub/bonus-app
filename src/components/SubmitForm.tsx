@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission, MarketingBonusData } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
-import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_PATIENTS, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG, isEligibleForBiannualBonus, getNextBiannualDate, RETENTION_TIERS, getRetentionBonus } from "@/lib/bonus";
+import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_UTILIZATION, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG, isEligibleForBiannualBonus, getNextBiannualDate, RETENTION_TIERS, getRetentionBonus } from "@/lib/bonus";
 import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
 
 function getMondayOfWeek(date: Date): string {
@@ -1223,7 +1223,7 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
               Individual Bonus — Clinical Director
             </h3>
             <p className="text-xs text-gray-500 mb-3">
-              Minimum {CD_MIN_PATIENTS} patients seen per week to qualify
+              Must have {(CD_MIN_UTILIZATION * 100).toFixed(0)}%+ of available appointments scheduled to qualify
             </p>
             <div className="grid grid-cols-2 gap-2">
               {CD_INDIVIDUAL_TIERS.slice().reverse().map((tier) => (
