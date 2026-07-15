@@ -55,7 +55,7 @@ export default async function Home() {
             >
               View Clinic Dashboard
             </Link>
-            {role === "admin" && (
+            {(role === "admin" || role === "director") && (
               <Link
                 href="/admin/staff"
                 className="inline-block px-6 py-3 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition"

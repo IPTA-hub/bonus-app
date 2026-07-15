@@ -49,6 +49,7 @@ export default function NavBar() {
   if (role === "director" && therapistSlug) {
     navLinks.push({ href: `/submit/${therapistSlug}`, label: "Submit Data" });
     navLinks.push({ href: `/dashboard/${therapistSlug}`, label: "My Dashboard" });
+    navLinks.push({ href: "/admin/staff", label: "Manage Staff" });
   }
 
   return (

@@ -68,15 +68,9 @@ export default function StaffManagementPage() {
     }
   }
 
-  function handleHoursUpdated(slug: string, newHours: number) {
+  function handleStaffUpdated(slug: string, updates: Partial<StaffMember>) {
     setStaff((prev) =>
-      prev.map((s) => (s.slug === slug ? { ...s, hoursPerWeek: newHours } : s))
-    );
-  }
-
-  function handleAvailableUpdated(slug: string, newSlots: number) {
-    setStaff((prev) =>
-      prev.map((s) => (s.slug === slug ? { ...s, availableSlots: newSlots } : s))
+      prev.map((s) => (s.slug === slug ? { ...s, ...updates } : s))
     );
   }
 
@@ -341,8 +335,7 @@ export default function StaffManagementPage() {
                   staff={s}
                   archiving={archiving === s.slug}
                   onArchive={() => handleArchive(s.slug, true)}
-                  onHoursUpdated={handleHoursUpdated}
-                  onAvailableUpdated={handleAvailableUpdated}
+                  onStaffUpdated={handleStaffUpdated}
                 />
               ))}
             </div>
@@ -369,8 +362,7 @@ export default function StaffManagementPage() {
                     staff={s}
                     archiving={archiving === s.slug}
                     onUnarchive={() => handleArchive(s.slug, false)}
-                    onHoursUpdated={handleHoursUpdated}
-                    onAvailableUpdated={handleAvailableUpdated}
+                    onStaffUpdated={handleStaffUpdated}
                     isArchived
                   />
                 ))}
@@ -388,78 +380,87 @@ function StaffRow({
   archiving,
   onArchive,
   onUnarchive,
-  onHoursUpdated,
-  onAvailableUpdated,
+  onStaffUpdated,
   isArchived = false,
 }: {
   staff: StaffMember;
   archiving: boolean;
   onArchive?: () => void;
   onUnarchive?: () => void;
-  onHoursUpdated?: (slug: string, newHours: number) => void;
-  onAvailableUpdated?: (slug: string, newSlots: number) => void;
+  onStaffUpdated?: (slug: string, updates: Partial<StaffMember>) => void;
   isArchived?: boolean;
 }) {
-  const [editingHours, setEditingHours] = useState(false);
-  const [hoursInput, setHoursInput] = useState(String(s.hoursPerWeek));
-  const [savingHours, setSavingHours] = useState(false);
-  const [hoursError, setHoursError] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const [editHours, setEditHours] = useState(String(s.hoursPerWeek));
+  const [editAvailable, setEditAvailable] = useState(s.availableSlots !== null && s.availableSlots !== undefined ? String(s.availableSlots) : "");
+  const [editLocations, setEditLocations] = useState<string[]>(s.workLocations);
+  const [editNoBonus, setEditNoBonus] = useState(s.noBonus);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
-  const [editingAvailable, setEditingAvailable] = useState(false);
-  const [availableInput, setAvailableInput] = useState(String(s.availableSlots ?? ""));
-  const [savingAvailable, setSavingAvailable] = useState(false);
-  const [availableError, setAvailableError] = useState("");
-
-  async function saveHours() {
-    const newHours = parseFloat(hoursInput);
-    if (isNaN(newHours) || newHours <= 0 || newHours > 60) {
-      setHoursError("Enter a valid number (1–60)");
-      return;
-    }
-    setSavingHours(true);
-    setHoursError("");
-    try {
-      const res = await fetch(`/api/admin/staff/${s.slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hoursPerWeek: newHours }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      onHoursUpdated?.(s.slug, newHours);
-      setEditingHours(false);
-    } catch {
-      setHoursError("Save failed. Try again.");
-    } finally {
-      setSavingHours(false);
-    }
+  function openEdit() {
+    setEditHours(String(s.hoursPerWeek));
+    setEditAvailable(s.availableSlots !== null && s.availableSlots !== undefined ? String(s.availableSlots) : "");
+    setEditLocations([...s.workLocations]);
+    setEditNoBonus(s.noBonus);
+    setSaveError("");
+    setExpanded(true);
   }
 
-  async function saveAvailable() {
-    const newSlots = parseInt(availableInput);
-    if (isNaN(newSlots) || newSlots < 0) {
-      setAvailableError("Enter a valid number (0 or more)");
+  function toggleEditLocation(loc: string) {
+    setEditLocations((prev) =>
+      prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
+    );
+  }
+
+  async function save() {
+    const newHours = parseFloat(editHours);
+    if (isNaN(newHours) || newHours <= 0 || newHours > 60) {
+      setSaveError("Hours must be between 1 and 60");
       return;
     }
-    setSavingAvailable(true);
-    setAvailableError("");
+    const newAvailable = editAvailable.trim() === "" ? null : parseInt(editAvailable);
+    if (newAvailable !== null && (isNaN(newAvailable) || newAvailable < 0)) {
+      setSaveError("Available visits must be 0 or more (leave blank to let staff enter manually)");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
     try {
-      const res = await fetch(`/api/admin/staff/${s.slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ availableSlots: newSlots }),
+      await Promise.all([
+        fetch(`/api/admin/staff/${s.slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hoursPerWeek: newHours }),
+        }),
+        fetch(`/api/admin/staff/${s.slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ availableSlots: newAvailable }),
+        }),
+        fetch(`/api/admin/staff/${s.slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workLocations: editLocations, noBonus: editNoBonus }),
+        }),
+      ]);
+      onStaffUpdated?.(s.slug, {
+        hoursPerWeek: newHours,
+        availableSlots: newAvailable,
+        workLocations: editLocations,
+        noBonus: editNoBonus,
       });
-      if (!res.ok) throw new Error("Failed");
-      onAvailableUpdated?.(s.slug, newSlots);
-      setEditingAvailable(false);
+      setExpanded(false);
     } catch {
-      setAvailableError("Save failed. Try again.");
+      setSaveError("Save failed. Try again.");
     } finally {
-      setSavingAvailable(false);
+      setSaving(false);
     }
   }
 
   return (
     <div className={`px-6 py-3 ${isArchived ? "opacity-60" : ""}`}>
+      {/* Summary row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -477,108 +478,25 @@ function StaffRow({
               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Added</span>
             )}
           </div>
-
-          {/* Hours row — inline edit */}
-          <div className="flex items-center gap-2 mt-1">
-            {editingHours ? (
-              <>
-                <input
-                  type="number"
-                  min="1"
-                  max="60"
-                  step="0.25"
-                  value={hoursInput}
-                  onChange={(e) => { setHoursInput(e.target.value); setHoursError(""); }}
-                  className="w-20 px-2 py-0.5 text-xs border border-ipta-teal rounded focus:ring-1 focus:ring-ipta-teal"
-                  autoFocus
-                  onKeyDown={(e) => { if (e.key === "Enter") saveHours(); if (e.key === "Escape") setEditingHours(false); }}
-                />
-                <span className="text-xs text-gray-500">hrs/wk</span>
-                <button
-                  onClick={saveHours}
-                  disabled={savingHours}
-                  className="px-2 py-0.5 text-xs font-medium text-white bg-ipta-teal rounded hover:bg-ipta-teal-light disabled:opacity-50 transition"
-                >
-                  {savingHours ? "..." : "Save"}
-                </button>
-                <button
-                  onClick={() => { setEditingHours(false); setHoursInput(String(s.hoursPerWeek)); setHoursError(""); }}
-                  className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
-                {hoursError && <span className="text-xs text-red-600">{hoursError}</span>}
-              </>
-            ) : (
-              <>
-                <span className="text-xs text-gray-400">
-                  {s.hoursPerWeek} hrs/wk · {s.workLocations.join(", ") || "—"}
-                  {s.email && ` · ${s.email}`}
-                </span>
-                {!isArchived && (
-                  <button
-                    onClick={() => { setEditingHours(true); setHoursInput(String(s.hoursPerWeek)); }}
-                    className="text-xs text-ipta-teal hover:underline"
-                  >
-                    Edit hours
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Available slots row — inline edit */}
-          <div className="flex items-center gap-2 mt-0.5">
-            {editingAvailable ? (
-              <>
-                <input
-                  type="number"
-                  min="0"
-                  max="999"
-                  step="1"
-                  value={availableInput}
-                  onChange={(e) => { setAvailableInput(e.target.value); setAvailableError(""); }}
-                  className="w-20 px-2 py-0.5 text-xs border border-ipta-teal rounded focus:ring-1 focus:ring-ipta-teal"
-                  autoFocus
-                  onKeyDown={(e) => { if (e.key === "Enter") saveAvailable(); if (e.key === "Escape") setEditingAvailable(false); }}
-                />
-                <span className="text-xs text-gray-500">available appt/wk</span>
-                <button
-                  onClick={saveAvailable}
-                  disabled={savingAvailable}
-                  className="px-2 py-0.5 text-xs font-medium text-white bg-ipta-teal rounded hover:bg-ipta-teal-light disabled:opacity-50 transition"
-                >
-                  {savingAvailable ? "..." : "Save"}
-                </button>
-                <button
-                  onClick={() => { setEditingAvailable(false); setAvailableInput(String(s.availableSlots ?? "")); setAvailableError(""); }}
-                  className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
-                {availableError && <span className="text-xs text-red-600">{availableError}</span>}
-              </>
-            ) : (
-              <>
-                <span className="text-xs text-gray-400">
-                  {s.availableSlots !== null && s.availableSlots !== undefined
-                    ? `${s.availableSlots} available appt/wk`
-                    : "Available appt/wk: not set"}
-                </span>
-                {!isArchived && (
-                  <button
-                    onClick={() => { setEditingAvailable(true); setAvailableInput(String(s.availableSlots ?? "")); }}
-                    className="text-xs text-ipta-teal hover:underline"
-                  >
-                    {s.availableSlots !== null && s.availableSlots !== undefined ? "Edit" : "Set available"}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {s.hoursPerWeek} hrs/wk
+            {s.workLocations.length > 0 && ` · ${s.workLocations.join(", ")}`}
+            {s.availableSlots !== null && s.availableSlots !== undefined
+              ? ` · ${s.availableSlots} avail/wk`
+              : " · avail: staff-entered"}
+            {s.email && ` · ${s.email}`}
+          </p>
         </div>
 
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {!isArchived && (
+            <button
+              onClick={expanded ? () => setExpanded(false) : openEdit}
+              className="px-3 py-1.5 text-xs font-medium text-ipta-teal bg-ipta-teal-50 border border-ipta-teal-100 rounded-lg hover:bg-ipta-teal-100 transition"
+            >
+              {expanded ? "Cancel" : "Edit"}
+            </button>
+          )}
           {!isArchived && onArchive && (
             <button
               onClick={onArchive}
@@ -599,6 +517,88 @@ function StaffRow({
           )}
         </div>
       </div>
+
+      {/* Expanded edit panel */}
+      {expanded && (
+        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Hours / Week</label>
+              <input
+                type="number"
+                min="1"
+                max="60"
+                step="0.25"
+                value={editHours}
+                onChange={(e) => setEditHours(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Available Visits / Week
+                <span className="ml-1 text-gray-400 font-normal">(leave blank = staff enter manually)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={editAvailable}
+                onChange={(e) => setEditAvailable(e.target.value)}
+                placeholder="Not set"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">Location(s)</label>
+            <div className="flex gap-4">
+              {ALL_LOCATIONS.map((loc) => (
+                <label key={loc} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editLocations.includes(loc)}
+                    onChange={() => toggleEditLocation(loc)}
+                    className="w-4 h-4 text-ipta-teal rounded focus:ring-ipta-teal"
+                  />
+                  <span className="text-sm text-gray-700">{loc}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={editNoBonus}
+                onChange={(e) => setEditNoBonus(e.target.checked)}
+                className="w-4 h-4 text-ipta-teal rounded focus:ring-ipta-teal"
+              />
+              <span className="text-sm text-gray-700">Tracking only (no bonus)</span>
+            </label>
+          </div>
+
+          {saveError && <p className="text-xs text-red-600">{saveError}</p>}
+
+          <div className="flex gap-2">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="px-4 py-2 text-sm font-semibold text-white bg-ipta-teal rounded-lg hover:bg-ipta-teal-light disabled:opacity-50 transition"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              onClick={() => setExpanded(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

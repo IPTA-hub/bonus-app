@@ -114,11 +114,11 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
     0
   );
   const locTotalScheduled = selectedLocations.reduce(
-    (sum, loc) => sum + (parseInt(locationEntries[loc]?.scheduled || "0") || 0),
+    (sum, loc) => sum + (parseFloat(locationEntries[loc]?.scheduled || "0") || 0),
     0
   );
   const locTotalSeen = selectedLocations.reduce(
-    (sum, loc) => sum + (parseInt(locationEntries[loc]?.seen || "0") || 0),
+    (sum, loc) => sum + (parseFloat(locationEntries[loc]?.seen || "0") || 0),
     0
   );
 
@@ -419,8 +419,8 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
           locData[loc] = {
             // When admin controls available, store 0 — API will use the override value
             available: availIsAdminSet ? 0 : (parseInt(entry.available) || 0),
-            scheduled: parseInt(entry.scheduled) || 0,
-            seen: parseInt(entry.seen) || 0,
+            scheduled: parseFloat(entry.scheduled) || 0,
+            seen: parseFloat(entry.seen) || 0,
           };
         }
         requestBody.location_data = locData;
@@ -429,8 +429,8 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
         requestBody.seen = locTotalSeen;
       } else {
         requestBody.available = availIsAdminSet ? 0 : (parseInt(available) || 0);
-        requestBody.scheduled = parseInt(scheduled) || 0;
-        requestBody.seen = parseInt(seen) || 0;
+        requestBody.scheduled = parseFloat(scheduled) || 0;
+        requestBody.seen = parseFloat(seen) || 0;
       }
 
       const res = await fetch("/api/submit", {
@@ -651,6 +651,7 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
                             <input
                               type="number"
                               min="0"
+                              step="0.5"
                               value={entry.scheduled}
                               onChange={(e) =>
                                 updateLocationEntry(loc, "scheduled", e.target.value)
@@ -666,6 +667,7 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
                             <input
                               type="number"
                               min="0"
+                              step="0.5"
                               value={entry.seen}
                               onChange={(e) =>
                                 updateLocationEntry(loc, "seen", e.target.value)

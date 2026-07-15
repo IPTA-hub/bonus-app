@@ -28,8 +28,8 @@ async function _runMigrations() {
       therapist_slug VARCHAR(100) NOT NULL,
       week_start DATE NOT NULL,
       available INTEGER NOT NULL DEFAULT 0,
-      scheduled INTEGER NOT NULL,
-      seen INTEGER NOT NULL,
+      scheduled DECIMAL(8,1) NOT NULL,
+      seen DECIMAL(8,1) NOT NULL,
       is_pto BOOLEAN NOT NULL DEFAULT FALSE,
       notes TEXT DEFAULT '',
       arrival_rate DECIMAL(6,4),
@@ -53,6 +53,19 @@ async function _runMigrations() {
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS recruitment_bonus DECIMAL(8,2) NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS role_bonus_data TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS pto_caseload_full BOOLEAN`;
+  // Allow decimal values (e.g. 0.5) for scheduled and seen columns
+  await sql`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'submissions' AND column_name = 'scheduled' AND data_type = 'integer'
+      ) THEN
+        ALTER TABLE submissions ALTER COLUMN scheduled TYPE DECIMAL(8,1) USING scheduled::DECIMAL(8,1);
+        ALTER TABLE submissions ALTER COLUMN seen TYPE DECIMAL(8,1) USING seen::DECIMAL(8,1);
+      END IF;
+    END $$
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -97,6 +110,27 @@ async function _runMigrations() {
       available_slots INTEGER NOT NULL,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+  `;
+  // Overrides table — admin-set work locations and no-bonus flag for hardcoded staff
+  await sql`
+    CREATE TABLE IF NOT EXISTS staff_settings_overrides (
+      slug VARCHAR(100) PRIMARY KEY,
+      work_locations TEXT NOT NULL DEFAULT '',
+      no_bonus BOOLEAN NOT NULL DEFAULT FALSE,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  // Ensure director-level staff have the correct user role.
+  // createUserIfNotExists uses ON CONFLICT DO NOTHING, so accounts created before
+  // the director role was introduced may still have role='therapist'.
+  await sql`
+    UPDATE users
+    SET role = 'director'
+    WHERE username IN (
+      'nicole.summerson', 'marley.higgins', 'stephanie.voorhes',
+      'katie.kiblen', 'kristina.ihrig', 'amy.mulligan'
+    )
+    AND role = 'therapist'
   `;
 }
 
@@ -566,6 +600,42 @@ export async function getAllAvailableOverrides(): Promise<Record<string, number>
   const rows = await sql`SELECT slug, available_slots FROM staff_available_overrides`;
   const result: Record<string, number> = {};
   for (const r of rows) result[r.slug as string] = Number(r.available_slots);
+  return result;
+}
+
+export async function clearAvailableOverride(slug: string): Promise<void> {
+  const sql = getDb();
+  await sql`DELETE FROM staff_available_overrides WHERE slug = ${slug}`;
+}
+
+// ─── Settings overrides (locations + noBonus for hardcoded staff) ─────────────
+
+export async function upsertSettingsOverride(slug: string, workLocations: string, noBonus: boolean): Promise<void> {
+  const sql = getDb();
+  await sql`
+    INSERT INTO staff_settings_overrides (slug, work_locations, no_bonus, updated_at)
+    VALUES (${slug}, ${workLocations}, ${noBonus}, CURRENT_TIMESTAMP)
+    ON CONFLICT (slug) DO UPDATE SET
+      work_locations = EXCLUDED.work_locations,
+      no_bonus = EXCLUDED.no_bonus,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function getSettingsOverride(slug: string): Promise<{ work_locations: string; no_bonus: boolean } | null> {
+  const sql = getDb();
+  const rows = await sql`SELECT work_locations, no_bonus FROM staff_settings_overrides WHERE slug = ${slug} LIMIT 1`;
+  return rows.length > 0 ? (rows[0] as unknown as { work_locations: string; no_bonus: boolean }) : null;
+}
+
+export async function getAllSettingsOverrides(): Promise<Record<string, { work_locations: string; no_bonus: boolean }>> {
+  const sql = getDb();
+  const rows = await sql`SELECT slug, work_locations, no_bonus FROM staff_settings_overrides`;
+  const result: Record<string, { work_locations: string; no_bonus: boolean }> = {};
+  for (const r of rows) {
+    const row = r as { slug: string; work_locations: string; no_bonus: boolean };
+    result[row.slug] = { work_locations: row.work_locations, no_bonus: row.no_bonus };
+  }
   return result;
 }
 

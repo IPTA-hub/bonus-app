@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, type SessionWithRole } from "@/lib/auth";
-import { setUserArchived, upsertHoursOverride, upsertAvailableOverride, getCustomStaffBySlug, upsertCustomStaff } from "@/lib/db";
+import { setUserArchived, upsertHoursOverride, upsertAvailableOverride, clearAvailableOverride, getCustomStaffBySlug, upsertCustomStaff, upsertSettingsOverride } from "@/lib/db";
 
 export async function PATCH(
   request: NextRequest,
@@ -8,7 +8,7 @@ export async function PATCH(
 ) {
   try {
     const session = (await auth()) as SessionWithRole | null;
-    if (!session || session.role !== "admin") {
+    if (!session || (session.role !== "admin" && session.role !== "director")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,14 +40,32 @@ export async function PATCH(
       return NextResponse.json({ success: true, slug, hoursPerWeek: newHours });
     }
 
-    // Handle available slots update
-    if (body.availableSlots !== undefined) {
+    // Handle available slots update (null = clear override so staff enter manually)
+    if (Object.prototype.hasOwnProperty.call(body, "availableSlots")) {
+      if (body.availableSlots === null) {
+        await clearAvailableOverride(slug);
+        return NextResponse.json({ success: true, slug, availableSlots: null });
+      }
       const newSlots = Number(body.availableSlots);
       if (isNaN(newSlots) || newSlots < 0) {
         return NextResponse.json({ error: "Invalid available slots value" }, { status: 400 });
       }
       await upsertAvailableOverride(slug, newSlots);
       return NextResponse.json({ success: true, slug, availableSlots: newSlots });
+    }
+
+    // Handle work locations and/or noBonus update
+    if (body.workLocations !== undefined || body.noBonus !== undefined) {
+      const locs = Array.isArray(body.workLocations) ? (body.workLocations as string[]).join(",") : "";
+      const noBonus = Boolean(body.noBonus);
+
+      const customRow = await getCustomStaffBySlug(slug);
+      if (customRow) {
+        await upsertCustomStaff({ ...customRow, work_locations: locs, no_bonus: noBonus });
+      } else {
+        await upsertSettingsOverride(slug, locs, noBonus);
+      }
+      return NextResponse.json({ success: true, slug });
     }
 
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

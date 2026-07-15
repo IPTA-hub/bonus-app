@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug, getHoursOverride, getAvailableOverride } from "@/lib/db";
+import { upsertSubmission, deleteSubmission, initDb, getCustomStaffBySlug, getHoursOverride, getAvailableOverride, getSettingsOverride } from "@/lib/db";
 import { getTherapistBySlug, customStaffRowToTherapist } from "@/lib/therapists";
 import type { Therapist } from "@/lib/therapists";
 
@@ -61,13 +61,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply hours override if admin has updated this staff member's hours
-    const hoursOverride = await getHoursOverride(therapist_slug);
+    const isHardcoded = !!getTherapistBySlug(therapist_slug);
+    const [hoursOverride, availableOverride, settingsOverride] = await Promise.all([
+      getHoursOverride(therapist_slug),
+      getAvailableOverride(therapist_slug),
+      isHardcoded ? getSettingsOverride(therapist_slug) : Promise.resolve(null),
+    ]);
+
     if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
       therapist = applyHoursOverride(therapist, hoursOverride);
     }
 
+    // Apply location/noBonus overrides for hardcoded staff
+    if (settingsOverride) {
+      therapist = { ...therapist, noBonus: settingsOverride.no_bonus };
+    }
+
     // Check if admin has set a fixed available slots value for this therapist
-    const availableOverride = await getAvailableOverride(therapist_slug);
+    // (availableOverride already fetched above)
 
     // If location_data is provided (per-location breakdown), compute totals from it
     let avail: number;
@@ -82,14 +93,14 @@ export async function POST(request: NextRequest) {
       seenCount = 0;
       for (const loc of Object.values(location_data) as { available: number; scheduled: number; seen: number }[]) {
         avail += parseInt(String(loc.available)) || 0;
-        sched += parseInt(String(loc.scheduled)) || 0;
-        seenCount += parseInt(String(loc.seen)) || 0;
+        sched += parseFloat(String(loc.scheduled)) || 0;
+        seenCount += parseFloat(String(loc.seen)) || 0;
       }
       locationDataStr = JSON.stringify(location_data);
     } else {
       avail = parseInt(available) || 0;
-      sched = parseInt(scheduled) || 0;
-      seenCount = parseInt(seen) || 0;
+      sched = parseFloat(scheduled) || 0;
+      seenCount = parseFloat(seen) || 0;
     }
 
     // Admin-set available overrides whatever the form submitted

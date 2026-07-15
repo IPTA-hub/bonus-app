@@ -8,6 +8,7 @@ import {
   getArchivedSlugs,
   getAllHoursOverrides,
   getAllAvailableOverrides,
+  getAllSettingsOverrides,
   createUserIfNotExists,
 } from "@/lib/db";
 import { THERAPISTS } from "@/lib/therapists";
@@ -16,35 +17,39 @@ import { LOCATIONS } from "@/lib/therapists";
 export async function GET() {
   try {
     const session = (await auth()) as SessionWithRole | null;
-    if (!session || session.role !== "admin") {
+    if (!session || session.role !== "admin" && session.role !== "director") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [customStaff, archivedSlugs, hoursOverrides, availableOverrides] = await Promise.all([
+    const [customStaff, archivedSlugs, hoursOverrides, availableOverrides, settingsOverrides] = await Promise.all([
       getAllCustomStaff(),
       getArchivedSlugs(),
       getAllHoursOverrides(),
       getAllAvailableOverrides(),
+      getAllSettingsOverrides(),
     ]);
 
     const archivedSet = new Set(archivedSlugs);
 
     // Build combined staff list
-    const hardcoded = THERAPISTS.map((t) => ({
-      slug: t.slug,
-      name: t.name,
-      role: t.role,
-      hoursPerWeek: hoursOverrides[t.slug] ?? t.hoursPerWeek,
-      availableSlots: availableOverrides[t.slug] ?? null,
-      workLocations: t.workLocations,
-      email: t.email || "",
-      hireDate: t.hireDate || "",
-      noBonus: t.noBonus || false,
-      isClinicalDirector: t.isClinicalDirector,
-      directorLocation: t.directorLocation || "",
-      isCustom: false,
-      isArchived: archivedSet.has(t.slug),
-    }));
+    const hardcoded = THERAPISTS.map((t) => {
+      const settings = settingsOverrides[t.slug];
+      return {
+        slug: t.slug,
+        name: t.name,
+        role: t.role,
+        hoursPerWeek: hoursOverrides[t.slug] ?? t.hoursPerWeek,
+        availableSlots: availableOverrides[t.slug] ?? null,
+        workLocations: settings ? settings.work_locations.split(",").filter(Boolean) : t.workLocations,
+        email: t.email || "",
+        hireDate: t.hireDate || "",
+        noBonus: settings ? settings.no_bonus : (t.noBonus || false),
+        isClinicalDirector: t.isClinicalDirector,
+        directorLocation: t.directorLocation || "",
+        isCustom: false,
+        isArchived: archivedSet.has(t.slug),
+      };
+    });
 
     const custom = customStaff.map((c) => ({
       slug: c.slug,
@@ -72,7 +77,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = (await auth()) as SessionWithRole | null;
-    if (!session || session.role !== "admin") {
+    if (!session || session.role !== "admin" && session.role !== "director") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

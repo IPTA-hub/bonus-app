@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTherapistBySlug, customStaffRowToTherapist, THERAPISTS } from "@/lib/therapists";
-import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, getAvailableOverride, initDb } from "@/lib/db";
+import { getCustomStaffBySlug, getArchivedSlugs, getHoursOverride, getAvailableOverride, getSettingsOverride, initDb } from "@/lib/db";
 import type { Therapist } from "@/lib/therapists";
 import SubmitForm from "@/components/SubmitForm";
 import WeeklyReminder from "@/components/WeeklyReminder";
@@ -31,11 +31,13 @@ export default async function SubmitPage({
   let therapist = getTherapistBySlug(slug);
 
   // All DB lookups run in parallel
-  const [customRow, archivedSlugs, hoursOverride, adminAvailable] = await Promise.all([
+  // settingsOverride only needed for hardcoded staff (custom staff settings are in their DB row)
+  const [customRow, archivedSlugs, hoursOverride, adminAvailable, settingsOverride] = await Promise.all([
     therapist ? Promise.resolve(null) : getCustomStaffBySlug(slug).catch(() => null),
     getArchivedSlugs().catch(() => [] as string[]),
     getHoursOverride(slug).catch(() => null),
     getAvailableOverride(slug).catch(() => null),
+    therapist ? getSettingsOverride(slug).catch(() => null) : Promise.resolve(null),
   ]);
 
   // Ensure DB is initialized for custom staff (no-op after first call)
@@ -57,6 +59,15 @@ export default async function SubmitPage({
 
   if (hoursOverride !== null && hoursOverride !== therapist.hoursPerWeek) {
     therapist = applyHoursOverride(therapist, hoursOverride);
+  }
+
+  // Apply location/noBonus overrides for hardcoded staff
+  if (settingsOverride) {
+    therapist = {
+      ...therapist,
+      workLocations: settingsOverride.work_locations.split(",").filter(Boolean),
+      noBonus: settingsOverride.no_bonus,
+    };
   }
 
   return (
