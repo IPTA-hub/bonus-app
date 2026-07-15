@@ -392,6 +392,87 @@ export async function getSubmission(
   return rows.length > 0 ? (rows[0] as unknown as Submission) : null;
 }
 
+// ─── Week-start normalisation ─────────────────────────────────────────────────
+
+export interface WeekFixReport {
+  moved: { therapist_slug: string; from: string; to: string }[];
+  merged: { therapist_slug: string; kept: string; deleted: string; kept_scheduled: number; deleted_scheduled: number }[];
+  skipped: { therapist_slug: string; week_start: string; reason: string }[];
+}
+
+export async function fixWeekStarts(dryRun = false): Promise<WeekFixReport> {
+  const sql = getDb();
+  const report: WeekFixReport = { moved: [], merged: [], skipped: [] };
+
+  // Find all non-Monday submissions + their target Monday
+  // Sunday (DOW=0) → next day (+1); all other non-Mondays → previous ISO Monday
+  const rows = await sql`
+    SELECT
+      id,
+      therapist_slug,
+      week_start::text as week_start,
+      scheduled,
+      seen,
+      CASE
+        WHEN EXTRACT(DOW FROM week_start) = 0
+          THEN (week_start + INTERVAL '1 day')::date::text
+        ELSE
+          date_trunc('week', week_start::timestamp)::date::text
+      END AS target_monday
+    FROM submissions
+    WHERE EXTRACT(DOW FROM week_start) != 1
+    ORDER BY therapist_slug, week_start
+  `;
+
+  for (const row of rows) {
+    const { id, therapist_slug, week_start, scheduled, target_monday } = row as {
+      id: number; therapist_slug: string; week_start: string;
+      scheduled: number; target_monday: string;
+    };
+
+    // Check for an existing Monday entry for the same therapist+week
+    const conflicts = await sql`
+      SELECT id, scheduled
+      FROM submissions
+      WHERE therapist_slug = ${therapist_slug} AND week_start = ${target_monday}
+    `;
+
+    if (conflicts.length === 0) {
+      // No conflict — just rename the date
+      report.moved.push({ therapist_slug, from: week_start, to: target_monday });
+      if (!dryRun) {
+        await sql`UPDATE submissions SET week_start = ${target_monday} WHERE id = ${id}`;
+      }
+    } else {
+      const conflict = conflicts[0] as { id: number; scheduled: number };
+      // Keep whichever has more scheduled appointments; delete the other
+      const keepNonMonday = Number(scheduled) >= Number(conflict.scheduled);
+      const keepId   = keepNonMonday ? id           : conflict.id;
+      const deleteId = keepNonMonday ? conflict.id  : id;
+      const keptDate = keepNonMonday ? week_start    : target_monday;
+      const deletedDate = keepNonMonday ? target_monday : week_start;
+
+      report.merged.push({
+        therapist_slug,
+        kept: keptDate,
+        deleted: deletedDate,
+        kept_scheduled: keepNonMonday ? Number(scheduled) : Number(conflict.scheduled),
+        deleted_scheduled: keepNonMonday ? Number(conflict.scheduled) : Number(scheduled),
+      });
+
+      if (!dryRun) {
+        await sql`DELETE FROM submissions WHERE id = ${deleteId}`;
+        if (keepNonMonday) {
+          await sql`UPDATE submissions SET week_start = ${target_monday} WHERE id = ${keepId}`;
+        }
+        // If the Monday entry wins it's already at the right date — nothing to update
+      }
+    }
+  }
+
+  return report;
+}
+
 // ─── Staff archiving ──────────────────────────────────────────────────────────
 
 export async function setUserArchived(therapistSlug: string, archived: boolean): Promise<void> {
