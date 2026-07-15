@@ -20,8 +20,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await initDb();
-
     const [customStaff, archivedSlugs, hoursOverrides, availableOverrides] = await Promise.all([
       getAllCustomStaff(),
       getArchivedSlugs(),

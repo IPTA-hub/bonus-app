@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { THERAPISTS, customStaffRowToTherapist, type Therapist } from "@/lib/therapists";
-import { getArchivedSlugs, getAllCustomStaff, initDb } from "@/lib/db";
+import { getArchivedSlugs, getAllCustomStaff } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,6 @@ export default async function Home() {
   let customTherapists: Therapist[] = [];
 
   try {
-    await initDb();
     const [archived, customRows] = await Promise.all([
       getArchivedSlugs(),
       getAllCustomStaff(),

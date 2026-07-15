@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, type SessionWithRole } from "@/lib/auth";
-import { initDb, setUserArchived, upsertHoursOverride, upsertAvailableOverride, getCustomStaffBySlug, upsertCustomStaff } from "@/lib/db";
+import { setUserArchived, upsertHoursOverride, upsertAvailableOverride, getCustomStaffBySlug, upsertCustomStaff } from "@/lib/db";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,8 +11,6 @@ export async function PATCH(
     if (!session || session.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    await initDb();
 
     const { slug } = await params;
     const body = await request.json();
