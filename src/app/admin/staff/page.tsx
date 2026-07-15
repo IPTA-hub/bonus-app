@@ -51,14 +51,19 @@ export default function StaffManagementPage() {
 
   async function loadStaff() {
     setLoading(true);
+    setError("");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const res = await fetch("/api/admin/staff");
+      const res = await fetch("/api/admin/staff", { signal: controller.signal });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
       setStaff(data.staff);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load staff");
+    } catch (err: unknown) {
+      const e = err as { name?: string; message?: string };
+      setError(e?.name === "AbortError" ? "Request timed out — try again" : (e?.message || "Failed to load staff"));
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -159,9 +164,18 @@ export default function StaffManagementPage() {
           </button>
         </div>
 
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ipta-teal" />
+          </div>
+        )}
+
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+            <p className="text-red-700 text-sm font-medium">{error}</p>
+            <button onClick={loadStaff} className="ml-4 px-3 py-1.5 bg-ipta-teal text-white text-sm font-semibold rounded-lg hover:bg-ipta-teal-light transition">
+              Retry
+            </button>
           </div>
         )}
 

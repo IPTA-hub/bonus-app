@@ -676,22 +676,46 @@ function filterByPeriod(data: Submission[], mode: PeriodMode, selected: string):
 export default function AdminDashboard() {
   const [data, setData] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("staff");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
   const [selectedPeriod, setSelectedPeriod] = useState("");
 
-  useEffect(() => {
-    fetch("/api/data")
-      .then((r) => r.json())
+  function loadData() {
+    setLoading(true);
+    setFetchError("");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    fetch("/api/data", { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Server error ${r.status}`);
+        return r.json();
+      })
       .then((d) => setData(Array.isArray(d) ? d : []))
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        setFetchError(err?.name === "AbortError" ? "Request timed out — try again" : (err?.message || "Failed to load data"));
+        setData([]);
+      })
+      .finally(() => { clearTimeout(timeout); setLoading(false); });
+  }
+
+  useEffect(() => { loadData(); }, []);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ipta-teal" />
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-red-600 font-medium">{fetchError}</p>
+        <button onClick={loadData} className="px-4 py-2 bg-ipta-teal text-white text-sm font-semibold rounded-lg hover:bg-ipta-teal-light transition">
+          Retry
+        </button>
       </div>
     );
   }
