@@ -676,7 +676,7 @@ function filterByPeriod(data: Submission[], mode: PeriodMode, selected: string):
 export default function AdminDashboard() {
   const [data, setData] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("submissions");
+  const [activeTab, setActiveTab] = useState<Tab>("staff");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
   const [selectedPeriod, setSelectedPeriod] = useState("");
 
@@ -732,8 +732,8 @@ export default function AdminDashboard() {
   const clinicBonus = staffSummaries.reduce((a, s) => a + s.totalBonus + s.totalEvalBonus, 0);
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "submissions", label: "Submissions" },
     { key: "staff", label: "By Staff" },
+    { key: "submissions", label: "Submissions" },
     { key: "discipline", label: "By Discipline" },
     { key: "location", label: "By Location" },
     { key: "directors", label: "Clinical Directors" },
