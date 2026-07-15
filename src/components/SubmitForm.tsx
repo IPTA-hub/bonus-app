@@ -506,7 +506,11 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
               <input
                 type="date"
                 value={weekStart}
-                onChange={(e) => setWeekStart(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setWeekStart(getMondayOfWeek(new Date(e.target.value + "T12:00:00")));
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
                 required
               />
