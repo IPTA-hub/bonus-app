@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission, MarketingBonusData } from "@/lib/db";
@@ -122,6 +123,7 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
     0
   );
 
+  const router = useRouter();
   const searchParams = useSearchParams();
   const autoEditHandled = useRef(false);
 
@@ -441,6 +443,11 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit");
+      if (!editingWeek) {
+        // New submission — go home so staff know it was submitted
+        router.push("/");
+        return;
+      }
       setResult(data);
       setEditingWeek(null);
     } catch (err) {
