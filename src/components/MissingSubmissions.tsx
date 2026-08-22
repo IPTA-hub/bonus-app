@@ -3,10 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Submission } from "@/lib/db";
-import { THERAPISTS } from "@/lib/therapists";
-
-// All staff who submit weekly data
-const SUBMITTING_STAFF = THERAPISTS;
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -32,13 +28,15 @@ export default function MissingSubmissions() {
   const currentMonday = getMondayOfWeek(new Date());
 
   useEffect(() => {
-    fetch("/api/data")
-      .then((r) => r.json())
-      .then((data: Submission[]) => {
+    Promise.all([
+      fetch("/api/data").then((r) => r.json()),
+      fetch("/api/admin/staff").then((r) => r.json()),
+    ])
+      .then(([data, staffResp]: [Submission[], { staff?: MissingStaff[] }]) => {
+        const submittingStaff = Array.isArray(staffResp?.staff) ? staffResp.staff : [];
+
         if (!Array.isArray(data)) {
-          setMissing(SUBMITTING_STAFF.map((t) => ({
-            name: t.name, slug: t.slug, role: t.role, isClinicalDirector: t.isClinicalDirector,
-          })));
+          setMissing(submittingStaff);
           return;
         }
 
@@ -54,7 +52,7 @@ export default function MissingSubmissions() {
         const missingList: MissingStaff[] = [];
         const submittedList: MissingStaff[] = [];
 
-        for (const t of SUBMITTING_STAFF) {
+        for (const t of submittingStaff) {
           const entry = {
             name: t.name, slug: t.slug, role: t.role, isClinicalDirector: t.isClinicalDirector,
           };
@@ -69,9 +67,7 @@ export default function MissingSubmissions() {
         setSubmitted(submittedList);
       })
       .catch(() => {
-        setMissing(THERAPISTS.map((t) => ({
-          name: t.name, slug: t.slug, role: t.role, isClinicalDirector: t.isClinicalDirector,
-        })));
+        setMissing([]);
       })
       .finally(() => setLoading(false));
   }, [currentMonday]);
@@ -119,7 +115,7 @@ export default function MissingSubmissions() {
       <div className="w-full bg-gray-200 rounded-full h-3">
         <div
           className="bg-green-500 h-3 rounded-full transition-all"
-          style={{ width: `${SUBMITTING_STAFF.length > 0 ? (submitted.length / SUBMITTING_STAFF.length) * 100 : 0}%` }}
+          style={{ width: `${(missing.length + submitted.length) > 0 ? (submitted.length / (missing.length + submitted.length)) * 100 : 0}%` }}
         />
       </div>
 

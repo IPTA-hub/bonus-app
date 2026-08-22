@@ -15,7 +15,7 @@ import {
   Legend,
 } from "recharts";
 import type { Submission } from "@/lib/db";
-import { THERAPISTS, LOCATIONS } from "@/lib/therapists";
+import { LOCATIONS } from "@/lib/therapists";
 import ClinicalDirectorDashboard from "./ClinicalDirectorDashboard";
 import MissingSubmissions from "./MissingSubmissions";
 
@@ -34,6 +34,15 @@ function formatPct(v: number | null): string {
 
 // ---- Data helpers ----
 
+// Minimal roster shape covering both hardcoded and DB-added ("custom") staff,
+// fetched from /api/admin/staff so the dashboard doesn't silently drop
+// staff who were added through Manage Staff instead of hardcoded in lib/therapists.ts.
+interface RosterEntry {
+  slug: string;
+  name: string;
+  role: string;
+}
+
 interface StaffSummary {
   name: string;
   slug: string;
@@ -51,14 +60,14 @@ interface StaffSummary {
   totalDevCodeEvals: number;
 }
 
-function buildStaffSummaries(submissions: Submission[]): StaffSummary[] {
+function buildStaffSummaries(submissions: Submission[], roster: RosterEntry[]): StaffSummary[] {
   const bySlug: Record<string, Submission[]> = {};
   for (const s of submissions) {
     if (!bySlug[s.therapist_slug]) bySlug[s.therapist_slug] = [];
     bySlug[s.therapist_slug].push(s);
   }
 
-  return THERAPISTS.map((t) => {
+  return roster.map((t) => {
     const all = bySlug[t.slug] || [];
     const subs = all.filter((s) => !s.is_pto && s.scheduled > 0);
     const totalSched = subs.reduce((acc, s) => acc + s.scheduled, 0);
@@ -181,7 +190,7 @@ function getLocationValues(s: Submission, loc: string): { available: number; sch
   };
 }
 
-function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
+function buildLocationSummaries(submissions: Submission[], roster: RosterEntry[]): LocationSummary[] {
   return LOCATIONS.map((loc) => {
     // Filter submissions that include this location
     const locSubs = submissions.filter((s) => {
@@ -225,7 +234,7 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
     // By discipline
     const roles = ["OTR", "COTA", "SLP", "MT"];
     const byDiscipline = roles.map((role) => {
-      const roleSlugs = THERAPISTS.filter((t) => t.role === role).map((t) => t.slug);
+      const roleSlugs = roster.filter((t) => t.role === role).map((t) => t.slug);
       const roleSubs = nonPto.filter((s) => roleSlugs.includes(s.therapist_slug));
       let rSched = 0;
       let rSeen = 0;
@@ -676,6 +685,7 @@ function filterByPeriod(data: Submission[], mode: PeriodMode, selected: string):
 
 export default function AdminDashboard() {
   const [data, setData] = useState<Submission[]>([]);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("staff");
@@ -687,15 +697,24 @@ export default function AdminDashboard() {
     setFetchError("");
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    fetch("/api/data", { signal: controller.signal })
-      .then((r) => {
+    Promise.all([
+      fetch("/api/data", { signal: controller.signal }).then((r) => {
         if (!r.ok) throw new Error(`Server error ${r.status}`);
         return r.json();
+      }),
+      fetch("/api/admin/staff", { signal: controller.signal }).then((r) => {
+        if (!r.ok) throw new Error(`Server error ${r.status}`);
+        return r.json();
+      }),
+    ])
+      .then(([submissions, staffResp]) => {
+        setData(Array.isArray(submissions) ? submissions : []);
+        setRoster(Array.isArray(staffResp?.staff) ? staffResp.staff : []);
       })
-      .then((d) => setData(Array.isArray(d) ? d : []))
       .catch((err) => {
         setFetchError(err?.name === "AbortError" ? "Request timed out — try again" : (err?.message || "Failed to load data"));
         setData([]);
+        setRoster([]);
       })
       .finally(() => { clearTimeout(timeout); setLoading(false); });
   }
@@ -743,9 +762,9 @@ export default function AdminDashboard() {
     ? formatMonthLabel(selectedPeriod)
     : "All Time";
 
-  const staffSummaries = buildStaffSummaries(filteredData);
+  const staffSummaries = buildStaffSummaries(filteredData, roster);
   const disciplineSummaries = buildDisciplineSummaries(staffSummaries);
-  const locationSummaries = buildLocationSummaries(filteredData);
+  const locationSummaries = buildLocationSummaries(filteredData, roster);
 
   // Clinic-wide totals
   const withData = staffSummaries.filter((s) => s.avgRate !== null);
@@ -836,7 +855,7 @@ export default function AdminDashboard() {
         </div>
         <div className="bg-white rounded-xl p-5 shadow text-center col-span-2 md:col-span-1">
           <p className="text-sm text-gray-500">Active Staff</p>
-          <p className="text-3xl font-bold text-gray-900">{THERAPISTS.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{roster.length}</p>
         </div>
       </div>
 

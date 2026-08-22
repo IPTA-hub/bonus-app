@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getAllSubmissions } from "@/lib/db";
-import { THERAPISTS } from "@/lib/therapists";
+import { getAllSubmissions, getAllCustomStaff } from "@/lib/db";
+import { THERAPISTS, customStaffRowToTherapist } from "@/lib/therapists";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -50,8 +50,12 @@ export async function GET(request: NextRequest) {
     // Get current week's Monday
     const currentMonday = getMondayOfWeek(new Date());
 
-    // Get all submissions
-    const submissions = await getAllSubmissions();
+    // Get all submissions and the full staff roster (hardcoded + staff added via Manage Staff)
+    const [submissions, customStaff] = await Promise.all([
+      getAllSubmissions(),
+      getAllCustomStaff(),
+    ]);
+    const allStaff = [...THERAPISTS, ...customStaff.map(customStaffRowToTherapist)];
 
     // Find who has submitted for the current week
     const submittedSlugs = new Set(
@@ -64,7 +68,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Find missing clinical staff who have an email (exclude non-clinical directors)
-    const missing = THERAPISTS.filter(
+    const missing = allStaff.filter(
       (t) => !submittedSlugs.has(t.slug) && t.email && t.role !== "Director"
     );
 
