@@ -33,8 +33,8 @@ export default async function Home() {
     OTR: allTherapists.filter((t) => t.role === "OTR" && !t.isClinicalDirector),
     COTA: allTherapists.filter((t) => t.role === "COTA" && !t.isClinicalDirector),
     SLP: allTherapists.filter((t) => t.role === "SLP" && !t.isClinicalDirector),
-    "Music Therapy": allTherapists.filter((t) => t.role === "MT" && !t.isClinicalDirector),
-    Director: allTherapists.filter((t) => t.role === "Director" || t.role === "Marketing" || t.isClinicalDirector),
+    "Music Therapy": allTherapists.filter((t) => t.role === "MT" && !t.isClinicalDirector && !t.hasDirectorAccess),
+    Director: allTherapists.filter((t) => t.role === "Director" || t.role === "Marketing" || t.isClinicalDirector || t.hasDirectorAccess),
     "Patient Care Coordinator": allTherapists.filter((t) => t.role === "PCC" || t.role === "PCC-Asst"),
     "Equine Team": allTherapists.filter((t) => t.role === "Equine"),
   };
