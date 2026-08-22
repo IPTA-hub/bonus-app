@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import type { Submission } from "@/lib/db";
-import { THERAPISTS, getClinicalDirectors, LOCATIONS, getYearsOfService } from "@/lib/therapists";
+import { LOCATIONS, getYearsOfService } from "@/lib/therapists";
+
+// Roster shape from /api/admin/staff — covers hardcoded staff AND staff
+// added through Manage Staff (custom_staff table), unlike the static
+// THERAPISTS import which only has the hardcoded roster.
+interface RosterEntry {
+  slug: string;
+  name: string;
+  role: string;
+  hireDate: string;
+  workLocations: string[];
+  isClinicalDirector: boolean;
+  directorLocation: string;
+}
 import {
   calculateCDTeamBonus,
   getVolumeTier,
@@ -104,10 +117,11 @@ function calculateWeeklyTeamData(
 // ---- SLP Team Data (across all locations) ----
 
 function calculateSLPWeeklyTeamData(
-  submissions: Submission[]
+  submissions: Submission[],
+  roster: RosterEntry[]
 ): WeeklyTeamData[] {
   // Get all SLP therapist slugs
-  const slpSlugs = THERAPISTS.filter((t) => t.role === "SLP").map((t) => t.slug);
+  const slpSlugs = roster.filter((t) => t.role === "SLP").map((t) => t.slug);
 
   // Group SLP submissions by week across all locations
   const byWeek: Record<string, { sched: number; seen: number }> = {};
@@ -143,9 +157,9 @@ function calculateSLPWeeklyTeamData(
 
 // ---- SLP Retention Data ----
 
-function calculateSLPRetentionData(): RetentionEntry[] {
+function calculateSLPRetentionData(roster: RosterEntry[]): RetentionEntry[] {
   // SLP therapists (not clinical directors)
-  const staff = THERAPISTS.filter(
+  const staff = roster.filter(
     (t) => t.role === "SLP" && !t.isClinicalDirector && t.hireDate
   );
 
@@ -221,10 +235,11 @@ interface RetentionEntry {
 
 function calculateRetentionData(
   location: string,
-  submissions: Submission[]
+  submissions: Submission[],
+  roster: RosterEntry[]
 ): RetentionEntry[] {
   // Therapists at this location (exclude Equine and Directors — they have their own structures)
-  const staff = THERAPISTS.filter(
+  const staff = roster.filter(
     (t) => !t.isClinicalDirector && t.role !== "Equine" && t.role !== "Director" && t.role !== "SLP" && t.workLocations.includes(location) && t.hireDate
   );
 
@@ -254,13 +269,19 @@ function calculateRetentionData(
 
 export default function ClinicalDirectorDashboard() {
   const [data, setData] = useState<Submission[]>([]);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/data")
-      .then((r) => r.json())
-      .then((d) => setData(Array.isArray(d) ? d : []))
-      .catch(() => setData([]))
+    Promise.all([
+      fetch("/api/data").then((r) => r.json()),
+      fetch("/api/admin/staff").then((r) => r.json()),
+    ])
+      .then(([d, staffResp]) => {
+        setData(Array.isArray(d) ? d : []);
+        setRoster(Array.isArray(staffResp?.staff) ? staffResp.staff : []);
+      })
+      .catch(() => { setData([]); setRoster([]); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -272,7 +293,7 @@ export default function ClinicalDirectorDashboard() {
     );
   }
 
-  const directors = getClinicalDirectors();
+  const directors = roster.filter((t) => t.isClinicalDirector);
 
   // Build individual bonus data for each director
   const directorSubmissions: Record<string, Submission[]> = {};
@@ -302,7 +323,7 @@ export default function ClinicalDirectorDashboard() {
         const teamTrackingLabel = isSLPDirector ? "SLP (All Locations)" : dir.directorLocation!;
         const teamData = hasLocationTeam
           ? (isSLPDirector
-            ? calculateSLPWeeklyTeamData(data)
+            ? calculateSLPWeeklyTeamData(data, roster)
             : calculateWeeklyTeamData(data, dir.directorLocation!))
           : [];
         const teamBonusTotal = teamData.reduce((a, w) => a + w.teamBonus, 0);
@@ -310,8 +331,8 @@ export default function ClinicalDirectorDashboard() {
         // Retention data — prorated by actual time at location from submissions
         const retentionData = hasLocationTeam
           ? (isSLPDirector
-            ? calculateSLPRetentionData()
-            : calculateRetentionData(dir.directorLocation!, data))
+            ? calculateSLPRetentionData(roster)
+            : calculateRetentionData(dir.directorLocation!, data, roster))
           : [];
         const retentionTotal = retentionData.reduce((a, r) => {
           return a + (r.bonus * r.locationShare);
