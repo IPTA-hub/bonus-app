@@ -12,6 +12,7 @@ export interface Therapist {
   workLocations: string[]; // typical work locations
   email?: string; // for reminder emails
   noBonus?: boolean; // tracks visits but has no bonus structure
+  hasDirectorAccess?: boolean; // grants 'director' user role (staff management) without the Clinical Director bonus dashboard — use for directors who aren't on the CD Individual/Team/Retention bonus structure
 }
 
 const FT_HOURS = 32;
@@ -29,6 +30,7 @@ function makeTherapist(
     workLocations?: string[];
     email?: string;
     noBonus?: boolean;
+    hasDirectorAccess?: boolean;
   }
 ): Therapist {
   const isFullTime = hours >= FT_HOURS;
@@ -46,6 +48,7 @@ function makeTherapist(
     workLocations: opts?.workLocations || [],
     email: opts?.email,
     noBonus: opts?.noBonus || false,
+    hasDirectorAccess: opts?.hasDirectorAccess || false,
   };
 }
 
@@ -149,6 +152,30 @@ export const THERAPISTS: Therapist[] = [
     email: "perlag@integratedpeds.com",
   }),
 
+  // --- Music Therapy (contracted via Elevate Music Therapy; not yet on the bonus structure) ---
+  makeTherapist("Anna Hume", "MT", 40, 19, {
+    hireDate: "2026-07-20",
+    workLocations: ["Greeley", "Windsor", "Farm", "Home"],
+    email: "annah@elevatemusictherapy.com",
+    noBonus: true,
+    hasDirectorAccess: true,
+  }),
+  makeTherapist("Lauren Trujillo", "MT", 40, 26, {
+    workLocations: ["Greeley", "Windsor", "Farm", "Home"],
+    email: "laurent@elevatemusictherapy.com",
+    noBonus: true,
+  }),
+  makeTherapist("Alyssa Symmonds", "MT", 40, 26, {
+    workLocations: ["Greeley", "Windsor", "Farm"],
+    email: "alyssas@elevatemusictherapy.com",
+    noBonus: true,
+  }),
+  makeTherapist("Taylor Baloga Loufek", "MT", 25, 16.5, {
+    workLocations: ["Greeley", "Windsor", "Farm", "Home"],
+    email: "taylorl@elevatemusictherapy.com",
+    noBonus: true,
+  }),
+
   // --- Equine Team ---
   makeTherapist("Marley Higgins", "Equine", 40, 0, {
     directorLocation: "Farm",
@@ -235,14 +262,14 @@ export function getEquineStaffMembers(): Therapist[] {
 
 // All staff who should have a "director" user role (clinical directors + Nicole Summerson)
 export function getDirectors(): Therapist[] {
-  return THERAPISTS.filter((t) => t.isClinicalDirector || t.role === "Director");
+  return THERAPISTS.filter((t) => t.isClinicalDirector || t.role === "Director" || t.hasDirectorAccess);
 }
 
 export function getTherapistsByLocation(location: string): Therapist[] {
   return THERAPISTS.filter((t) => t.workLocations.includes(location));
 }
 
-export const LOCATIONS = ["Greeley", "Farm", "Windsor"] as const;
+export const LOCATIONS = ["Greeley", "Farm", "Windsor", "Home"] as const;
 export type Location = (typeof LOCATIONS)[number];
 
 // Calculate months of service as of a given date

@@ -10,6 +10,7 @@ const DIRECTOR_USERNAMES = [
   "kristina.ihrig",
   "amy.mulligan",
   "nicole.summerson",
+  "anna.hume",
 ];
 
 function toUsername(name: string): string {

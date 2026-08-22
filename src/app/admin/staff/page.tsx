@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const ROLES = ["OTR", "COTA", "SLP", "PCC", "PCC-Asst", "Equine", "Marketing", "Director"];
-const ALL_LOCATIONS = ["Greeley", "Windsor", "Farm"];
+const ROLES = ["OTR", "COTA", "SLP", "MT", "PCC", "PCC-Asst", "Equine", "Marketing", "Director"];
+const ALL_LOCATIONS = ["Greeley", "Windsor", "Farm", "Home"];
 
 interface StaffMember {
   slug: string;

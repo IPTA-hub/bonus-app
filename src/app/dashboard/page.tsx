@@ -11,7 +11,7 @@ export default function DashboardPage() {
               Admin Dashboard
             </h1>
             <p className="text-gray-500 mt-1">
-              OTR / COTA / SLP Productivity & Bonus Tracking
+              OTR / COTA / SLP / Music Therapy Productivity & Bonus Tracking
             </p>
           </div>
           <Link

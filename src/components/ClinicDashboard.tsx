@@ -79,7 +79,7 @@ interface LocationSummary {
   weeksWithData: number;
 }
 
-const LOCATIONS = ["Greeley", "Windsor", "Farm"];
+const LOCATIONS = ["Greeley", "Windsor", "Farm", "Home"];
 
 function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
   const locTotals: Record<string, { available: number; scheduled: number; seen: number; weeks: Set<string> }> = {};

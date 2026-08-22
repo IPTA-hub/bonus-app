@@ -109,7 +109,7 @@ interface DisciplineSummary {
 }
 
 function buildDisciplineSummaries(staffSummaries: StaffSummary[]): DisciplineSummary[] {
-  const roles = ["OTR", "COTA", "SLP"];
+  const roles = ["OTR", "COTA", "SLP", "MT"];
   return roles.map((role) => {
     const staff = staffSummaries.filter((s) => s.role === role);
     const totalSched = staff.reduce((a, s) => a + s.totalScheduled, 0);
@@ -223,7 +223,7 @@ function buildLocationSummaries(submissions: Submission[]): LocationSummary[] {
     const slugs = new Set(locSubs.map((s) => s.therapist_slug));
 
     // By discipline
-    const roles = ["OTR", "COTA", "SLP"];
+    const roles = ["OTR", "COTA", "SLP", "MT"];
     const byDiscipline = roles.map((role) => {
       const roleSlugs = THERAPISTS.filter((t) => t.role === role).map((t) => t.slug);
       const roleSubs = nonPto.filter((s) => roleSlugs.includes(s.therapist_slug));
@@ -449,6 +449,7 @@ const DISCIPLINE_COLORS: Record<string, string> = {
   OTR: "#4f46e5",
   COTA: "#0891b2",
   SLP: "#7c3aed",
+  MT: "#d97706",
 };
 
 function DisciplineView({ summaries }: { summaries: DisciplineSummary[] }) {
