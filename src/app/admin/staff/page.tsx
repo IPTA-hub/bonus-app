@@ -17,6 +17,8 @@ interface StaffMember {
   noBonus: boolean;
   isClinicalDirector: boolean;
   directorLocation: string;
+  adminTimeNote: string;
+  additionalRolesNote: string;
   isCustom: boolean;
   isArchived: boolean;
 }
@@ -32,6 +34,8 @@ const emptyForm = {
   noBonus: false,
   isClinicalDirector: false,
   directorLocation: "",
+  adminTimeNote: "",
+  additionalRolesNote: "",
 };
 
 export default function StaffManagementPage() {
@@ -113,6 +117,8 @@ export default function StaffManagementPage() {
           noBonus: form.noBonus,
           isClinicalDirector: form.isClinicalDirector,
           directorLocation: form.directorLocation,
+          adminTimeNote: form.adminTimeNote,
+          additionalRolesNote: form.additionalRolesNote,
         }),
       });
       const data = await res.json();
@@ -269,6 +275,32 @@ export default function StaffManagementPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Time Note
+                    <span className="ml-1 text-gray-400 font-normal">(not tracked for productivity)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.adminTimeNote}
+                    onChange={(e) => setForm((p) => ({ ...p, adminTimeNote: e.target.value }))}
+                    placeholder="e.g. 4 hrs/week, Fridays"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Additional Roles Note</label>
+                  <input
+                    type="text"
+                    value={form.additionalRolesNote}
+                    onChange={(e) => setForm((p) => ({ ...p, additionalRolesNote: e.target.value }))}
+                    placeholder="e.g. Covers front desk on Mondays"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal text-sm"
+                  />
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -395,6 +427,8 @@ function StaffRow({
   const [editAvailable, setEditAvailable] = useState(s.availableSlots !== null && s.availableSlots !== undefined ? String(s.availableSlots) : "");
   const [editLocations, setEditLocations] = useState<string[]>(s.workLocations);
   const [editNoBonus, setEditNoBonus] = useState(s.noBonus);
+  const [editAdminTimeNote, setEditAdminTimeNote] = useState(s.adminTimeNote);
+  const [editAdditionalRolesNote, setEditAdditionalRolesNote] = useState(s.additionalRolesNote);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -403,6 +437,8 @@ function StaffRow({
     setEditAvailable(s.availableSlots !== null && s.availableSlots !== undefined ? String(s.availableSlots) : "");
     setEditLocations([...s.workLocations]);
     setEditNoBonus(s.noBonus);
+    setEditAdminTimeNote(s.adminTimeNote);
+    setEditAdditionalRolesNote(s.additionalRolesNote);
     setSaveError("");
     setExpanded(true);
   }
@@ -443,12 +479,19 @@ function StaffRow({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ workLocations: editLocations, noBonus: editNoBonus }),
         }),
+        fetch(`/api/admin/staff/${s.slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminTimeNote: editAdminTimeNote, additionalRolesNote: editAdditionalRolesNote }),
+        }),
       ]);
       onStaffUpdated?.(s.slug, {
         hoursPerWeek: newHours,
         availableSlots: newAvailable,
         workLocations: editLocations,
         noBonus: editNoBonus,
+        adminTimeNote: editAdminTimeNote,
+        additionalRolesNote: editAdditionalRolesNote,
       });
       setExpanded(false);
     } catch {
@@ -486,6 +529,13 @@ function StaffRow({
               : " · avail: staff-entered"}
             {s.email && ` · ${s.email}`}
           </p>
+          {(s.adminTimeNote || s.additionalRolesNote) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {s.adminTimeNote && `Admin time: ${s.adminTimeNote}`}
+              {s.adminTimeNote && s.additionalRolesNote && " · "}
+              {s.additionalRolesNote && `Additional roles: ${s.additionalRolesNote}`}
+            </p>
+          )}
         </div>
 
         <div className="flex-shrink-0 flex items-center gap-2">
@@ -565,6 +615,32 @@ function StaffRow({
                   <span className="text-sm text-gray-700">{loc}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Admin Time Note
+                <span className="ml-1 text-gray-400 font-normal">(not tracked for productivity)</span>
+              </label>
+              <input
+                type="text"
+                value={editAdminTimeNote}
+                onChange={(e) => setEditAdminTimeNote(e.target.value)}
+                placeholder="e.g. 4 hrs/week, Fridays"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Additional Roles Note</label>
+              <input
+                type="text"
+                value={editAdditionalRolesNote}
+                onChange={(e) => setEditAdditionalRolesNote(e.target.value)}
+                placeholder="e.g. Covers front desk on Mondays"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+              />
             </div>
           </div>
 

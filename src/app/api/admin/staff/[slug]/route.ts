@@ -63,7 +63,25 @@ export async function PATCH(
       if (customRow) {
         await upsertCustomStaff({ ...customRow, work_locations: locs, no_bonus: noBonus });
       } else {
-        await upsertSettingsOverride(slug, locs, noBonus);
+        await upsertSettingsOverride(slug, { workLocations: locs, noBonus });
+      }
+      return NextResponse.json({ success: true, slug });
+    }
+
+    // Handle admin time / additional roles notes update
+    if (body.adminTimeNote !== undefined || body.additionalRolesNote !== undefined) {
+      const adminTimeNote = body.adminTimeNote !== undefined ? String(body.adminTimeNote) : undefined;
+      const additionalRolesNote = body.additionalRolesNote !== undefined ? String(body.additionalRolesNote) : undefined;
+
+      const customRow = await getCustomStaffBySlug(slug);
+      if (customRow) {
+        await upsertCustomStaff({
+          ...customRow,
+          admin_time_note: adminTimeNote ?? customRow.admin_time_note,
+          additional_roles_note: additionalRolesNote ?? customRow.additional_roles_note,
+        });
+      } else {
+        await upsertSettingsOverride(slug, { adminTimeNote, additionalRolesNote });
       }
       return NextResponse.json({ success: true, slug });
     }

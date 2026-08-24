@@ -28,7 +28,7 @@ export async function GET() {
       getArchivedSlugs(),
       getAllHoursOverrides(),
       getAllAvailableOverrides(),
-      getAllSettingsOverrides().catch(() => ({} as Record<string, { work_locations: string; no_bonus: boolean }>)),
+      getAllSettingsOverrides().catch(() => ({} as Record<string, { work_locations: string; no_bonus: boolean; admin_time_note: string; additional_roles_note: string }>)),
     ]);
 
     const archivedSet = new Set(archivedSlugs);
@@ -48,6 +48,8 @@ export async function GET() {
         noBonus: settings ? settings.no_bonus : (t.noBonus || false),
         isClinicalDirector: t.isClinicalDirector,
         directorLocation: t.directorLocation || "",
+        adminTimeNote: settings?.admin_time_note || "",
+        additionalRolesNote: settings?.additional_roles_note || "",
         isCustom: false,
         isArchived: archivedSet.has(t.slug),
       };
@@ -65,6 +67,8 @@ export async function GET() {
       noBonus: c.no_bonus,
       isClinicalDirector: c.is_clinical_director,
       directorLocation: c.director_location || "",
+      adminTimeNote: c.admin_time_note || "",
+      additionalRolesNote: c.additional_roles_note || "",
       isCustom: true,
       isArchived: archivedSet.has(c.slug),
     }));
@@ -97,6 +101,8 @@ export async function POST(request: NextRequest) {
       noBonus,
       isClinicalDirector,
       directorLocation,
+      adminTimeNote,
+      additionalRolesNote,
     } = body;
 
     if (!name || !role) {
@@ -125,6 +131,8 @@ export async function POST(request: NextRequest) {
       work_locations: Array.isArray(workLocations) ? workLocations.join(",") : (workLocations || ""),
       email: email || null,
       no_bonus: Boolean(noBonus),
+      admin_time_note: adminTimeNote || "",
+      additional_roles_note: additionalRolesNote || "",
     });
 
     // Create user account (won't overwrite if already exists)
