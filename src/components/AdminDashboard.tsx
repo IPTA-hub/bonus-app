@@ -41,6 +41,7 @@ interface RosterEntry {
   slug: string;
   name: string;
   role: string;
+  isArchived?: boolean;
 }
 
 interface StaffSummary {
@@ -58,6 +59,10 @@ interface StaffSummary {
   totalSeen: number;
   totalEvals: number;
   totalDevCodeEvals: number;
+  isArchived: boolean;
+  // Archived (inactive) staff are hidden from the lists unless they contributed data
+  // (visits or bonuses) in the selected period, so lists still reconcile with the totals.
+  isVisible: boolean;
 }
 
 function buildStaffSummaries(submissions: Submission[], roster: RosterEntry[]): StaffSummary[] {
@@ -102,6 +107,8 @@ function buildStaffSummaries(submissions: Submission[], roster: RosterEntry[]): 
       totalSeen: totalSeen,
       totalEvals,
       totalDevCodeEvals,
+      isArchived: !!t.isArchived,
+      isVisible: !t.isArchived || subs.length > 0 || totalBonus + totalEvalBonus > 0,
     };
   });
 }
@@ -129,7 +136,7 @@ function buildDisciplineSummaries(staffSummaries: StaffSummary[]): DisciplineSum
     const totalEvals = staff.reduce((a, s) => a + s.totalEvals, 0);
     return {
       role,
-      count: staff.length,
+      count: staff.filter((s) => s.isVisible).length,
       avgRate: totalSched > 0 ? totalSeen / totalSched : null,
       avgUtilization: totalAvail > 0 ? totalSched / totalAvail : null,
       totalBonus,
@@ -272,7 +279,9 @@ function buildLocationSummaries(submissions: Submission[], roster: RosterEntry[]
 
 type Tab = "staff" | "discipline" | "location" | "directors" | "submissions";
 
-function StaffView({ summaries }: { summaries: StaffSummary[] }) {
+function StaffView({ summaries: allSummaries }: { summaries: StaffSummary[] }) {
+  // Inactive (archived) staff with no data in this period are hidden
+  const summaries = allSummaries.filter((s) => s.isVisible);
   const withData = summaries.filter((s) => s.avgRate !== null);
   const chartData = withData
     .map((s) => ({
@@ -343,9 +352,16 @@ function StaffView({ summaries }: { summaries: StaffSummary[] }) {
                 {summaries.map((s) => (
                   <tr key={s.slug} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">
-                      <Link href={`/dashboard/${s.slug}`} className="hover:text-ipta-teal">
-                        {s.name}
-                      </Link>
+                      {s.isArchived ? (
+                        <span className="text-gray-500">
+                          {s.name}
+                          <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">Archived</span>
+                        </span>
+                      ) : (
+                        <Link href={`/dashboard/${s.slug}`} className="hover:text-ipta-teal">
+                          {s.name}
+                        </Link>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
@@ -377,10 +393,14 @@ function StaffView({ summaries }: { summaries: StaffSummary[] }) {
                     </td>
                     <td className="px-4 py-3">{s.weeksWorked}</td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Link href={`/submit/${s.slug}`} className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium">Submit</Link>
-                        <Link href={`/dashboard/${s.slug}`} className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium">Dashboard</Link>
-                      </div>
+                      {s.isArchived ? (
+                        <span className="text-xs text-gray-400">-</span>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Link href={`/submit/${s.slug}`} className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium">Submit</Link>
+                          <Link href={`/dashboard/${s.slug}`} className="text-ipta-teal hover:text-ipta-teal-light text-xs font-medium">Dashboard</Link>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -393,9 +413,16 @@ function StaffView({ summaries }: { summaries: StaffSummary[] }) {
           {summaries.map((s) => (
             <div key={s.slug} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
-                <Link href={`/dashboard/${s.slug}`} className="font-medium text-gray-900 hover:text-ipta-teal">
-                  {s.name}
-                </Link>
+                {s.isArchived ? (
+                  <span className="font-medium text-gray-500">
+                    {s.name}
+                    <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">Archived</span>
+                  </span>
+                ) : (
+                  <Link href={`/dashboard/${s.slug}`} className="font-medium text-gray-900 hover:text-ipta-teal">
+                    {s.name}
+                  </Link>
+                )}
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
                   {s.role}
                 </span>
@@ -433,20 +460,22 @@ function StaffView({ summaries }: { summaries: StaffSummary[] }) {
                   ))}
                 </div>
               )}
-              <div className="flex gap-2">
-                <Link
-                  href={`/submit/${s.slug}`}
-                  className="flex-1 text-center min-h-[44px] flex items-center justify-center rounded-lg bg-ipta-teal text-white text-sm font-medium hover:bg-ipta-teal-light"
-                >
-                  Submit
-                </Link>
-                <Link
-                  href={`/dashboard/${s.slug}`}
-                  className="flex-1 text-center min-h-[44px] flex items-center justify-center rounded-lg border border-ipta-teal text-ipta-teal text-sm font-medium hover:bg-ipta-teal-50"
-                >
-                  Dashboard
-                </Link>
-              </div>
+              {!s.isArchived && (
+                <div className="flex gap-2">
+                  <Link
+                    href={`/submit/${s.slug}`}
+                    className="flex-1 text-center min-h-[44px] flex items-center justify-center rounded-lg bg-ipta-teal text-white text-sm font-medium hover:bg-ipta-teal-light"
+                  >
+                    Submit
+                  </Link>
+                  <Link
+                    href={`/dashboard/${s.slug}`}
+                    className="flex-1 text-center min-h-[44px] flex items-center justify-center rounded-lg border border-ipta-teal text-ipta-teal text-sm font-medium hover:bg-ipta-teal-50"
+                  >
+                    Dashboard
+                  </Link>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -917,7 +946,7 @@ export default function AdminDashboard() {
         </div>
         <div className="bg-white rounded-xl p-5 shadow text-center col-span-2 md:col-span-1">
           <p className="text-sm text-gray-500">Active Staff</p>
-          <p className="text-3xl font-bold text-gray-900">{roster.length}</p>
+          <p className="text-3xl font-bold text-gray-900">{roster.filter((t) => !t.isArchived).length}</p>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getAllSubmissions, getAllCustomStaff } from "@/lib/db";
+import { getAllSubmissions, getAllCustomStaff, getArchivedSlugs } from "@/lib/db";
 import { THERAPISTS, customStaffRowToTherapist } from "@/lib/therapists";
 
 function getMondayOfWeek(date: Date): string {
@@ -51,11 +51,14 @@ export async function GET(request: NextRequest) {
     const currentMonday = getMondayOfWeek(new Date());
 
     // Get all submissions and the full staff roster (hardcoded + staff added via Manage Staff)
-    const [submissions, customStaff] = await Promise.all([
+    const [submissions, customStaff, archivedSlugs] = await Promise.all([
       getAllSubmissions(),
       getAllCustomStaff(),
+      getArchivedSlugs(),
     ]);
-    const allStaff = [...THERAPISTS, ...customStaff.map(customStaffRowToTherapist)];
+    // Archived (inactive) staff shouldn't get reminder emails
+    const archivedSet = new Set(archivedSlugs);
+    const allStaff = [...THERAPISTS, ...customStaff.map(customStaffRowToTherapist)].filter((t) => !archivedSet.has(t.slug));
 
     // Find who has submitted for the current week
     const submittedSlugs = new Set(

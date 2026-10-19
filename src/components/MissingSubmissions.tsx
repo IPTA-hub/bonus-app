@@ -17,6 +17,7 @@ interface MissingStaff {
   slug: string;
   role: string;
   isClinicalDirector: boolean;
+  isArchived?: boolean;
 }
 
 export default function MissingSubmissions() {
@@ -33,7 +34,8 @@ export default function MissingSubmissions() {
       fetch("/api/admin/staff").then((r) => r.json()),
     ])
       .then(([data, staffResp]: [Submission[], { staff?: MissingStaff[] }]) => {
-        const submittingStaff = Array.isArray(staffResp?.staff) ? staffResp.staff : [];
+        // Archived (inactive) staff aren't expected to submit
+        const submittingStaff = (Array.isArray(staffResp?.staff) ? staffResp.staff : []).filter((t) => !t.isArchived);
 
         if (!Array.isArray(data)) {
           setMissing(submittingStaff);
