@@ -279,9 +279,24 @@ function buildLocationSummaries(submissions: Submission[], roster: RosterEntry[]
 
 type Tab = "staff" | "discipline" | "location" | "directors" | "submissions";
 
+// Sort alphabetically by last name (the last word of the name), then first name
+function lastNameOf(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+function compareByLastName(a: { name: string }, b: { name: string }): number {
+  return (
+    lastNameOf(a.name).localeCompare(lastNameOf(b.name), undefined, { sensitivity: "base" }) ||
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+  );
+}
+
 function StaffView({ summaries: allSummaries }: { summaries: StaffSummary[] }) {
   // Inactive (archived) staff with no data in this period are hidden
-  const summaries = allSummaries.filter((s) => s.isVisible);
+  const summaries = allSummaries
+    .filter((s) => s.isVisible)
+    .sort(compareByLastName);
   const withData = summaries.filter((s) => s.avgRate !== null);
   const chartData = withData
     .map((s) => ({
