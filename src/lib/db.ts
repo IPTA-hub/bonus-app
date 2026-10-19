@@ -324,6 +324,24 @@ export interface MarketingBonusData {
   sponsorship_bonus: number;
 }
 
+// Postgres DECIMAL columns come back from the Neon driver as strings ("41.0"), which
+// makes totals concatenate ("0" + "41.0" + ...) and produce NaN. Convert them to
+// real numbers once here so every dashboard and calculation gets numbers.
+const SUBMISSION_NUMERIC_FIELDS = [
+  "available", "scheduled", "seen", "arrival_rate", "utilization_rate",
+  "bonus_amount", "eval_bonus", "recruitment_bonus",
+  "evals_completed", "evals_with_dev_codes", "recruitment_hires", "recruitment_events",
+] as const;
+
+function normalizeSubmission(row: Record<string, unknown>): Submission {
+  const out = { ...row };
+  for (const f of SUBMISSION_NUMERIC_FIELDS) {
+    const v = out[f];
+    if (v !== null && v !== undefined) out[f] = Number(v);
+  }
+  return out as unknown as Submission;
+}
+
 export async function upsertSubmission(data: {
   therapist_slug: string;
   week_start: string;
@@ -381,7 +399,7 @@ export async function getSubmissions(therapistSlug: string): Promise<Submission[
     WHERE therapist_slug = ${therapistSlug}
     ORDER BY week_start ASC
   `;
-  return rows as unknown as Submission[];
+  return rows.map(normalizeSubmission);
 }
 
 export async function getAllSubmissions(): Promise<Submission[]> {
@@ -390,7 +408,7 @@ export async function getAllSubmissions(): Promise<Submission[]> {
     SELECT * FROM submissions
     ORDER BY week_start ASC, therapist_slug ASC
   `;
-  return rows as unknown as Submission[];
+  return rows.map(normalizeSubmission);
 }
 
 export async function getSubmissionsByDateRange(
@@ -403,7 +421,7 @@ export async function getSubmissionsByDateRange(
     WHERE week_start >= ${start} AND week_start <= ${end}
     ORDER BY week_start ASC, therapist_slug ASC
   `;
-  return rows as unknown as Submission[];
+  return rows.map(normalizeSubmission);
 }
 
 export async function getSubmissionsFromWeek(
@@ -416,7 +434,7 @@ export async function getSubmissionsFromWeek(
     WHERE therapist_slug = ${therapistSlug} AND week_start >= ${weekStart}
     ORDER BY week_start ASC
   `;
-  return rows as unknown as Submission[];
+  return rows.map(normalizeSubmission);
 }
 
 export async function updateSubmissionAvailability(
@@ -463,7 +481,7 @@ export async function getSubmission(
     WHERE therapist_slug = ${therapistSlug} AND week_start = ${weekStart}
     LIMIT 1
   `;
-  return rows.length > 0 ? (rows[0] as unknown as Submission) : null;
+  return rows.length > 0 ? normalizeSubmission(rows[0]) : null;
 }
 
 // ─── Week-start normalisation ─────────────────────────────────────────────────
