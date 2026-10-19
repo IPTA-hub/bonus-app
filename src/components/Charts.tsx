@@ -239,7 +239,7 @@ export function WeeklyUtilizationChart({ data }: WeeklyChartProps) {
 }
 
 export function YearlySummary({ data, role }: WeeklyChartProps & { role?: string }) {
-  const nonPto = data.filter((d) => !d.is_pto && d.scheduled > 0);
+  const nonPto = data.filter((d) => d.scheduled > 0); // PTO weeks with visits count
   const totalSched = nonPto.reduce((s, d) => s + d.scheduled, 0);
   const totalSeen = nonPto.reduce((s, d) => s + d.seen, 0);
   const totalAvail = nonPto.reduce((s, d) => s + (d.available || 0), 0);

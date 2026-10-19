@@ -60,7 +60,7 @@ function calculateWeeklyTeamData(
   const byWeek: Record<string, { sched: number; seen: number }> = {};
 
   for (const s of submissions) {
-    if (s.is_pto || s.scheduled <= 0) continue;
+    if (s.scheduled <= 0) continue;
     if (!s.locations) continue;
 
     const locs = s.locations.split(",").filter(Boolean);
@@ -127,7 +127,7 @@ function calculateSLPWeeklyTeamData(
   const byWeek: Record<string, { sched: number; seen: number }> = {};
 
   for (const s of submissions) {
-    if (s.is_pto || s.scheduled <= 0) continue;
+    if (s.scheduled <= 0) continue;
     if (!slpSlugs.includes(s.therapist_slug)) continue;
 
     const week = s.week_start;
@@ -189,7 +189,7 @@ function calculateLocationShares(
   const locSeen: Record<string, number> = {};
   let totalSeen = 0;
 
-  const subs = submissions.filter((s) => s.therapist_slug === therapistSlug && !s.is_pto);
+  const subs = submissions.filter((s) => s.therapist_slug === therapistSlug);
   for (const s of subs) {
     if (s.location_data) {
       try {
@@ -305,7 +305,7 @@ export default function ClinicalDirectorDashboard() {
     <div className="space-y-10">
       {directors.map((dir) => {
         const subs = directorSubmissions[dir.slug] || [];
-        const nonPto = subs.filter((s) => !s.is_pto && s.scheduled > 0);
+        const nonPto = subs.filter((s) => s.scheduled > 0);
 
         // Individual stats
         const totalSched = nonPto.reduce((a, s) => a + s.scheduled, 0);

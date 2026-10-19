@@ -69,7 +69,8 @@ function buildStaffSummaries(submissions: Submission[], roster: RosterEntry[]): 
 
   return roster.map((t) => {
     const all = bySlug[t.slug] || [];
-    const subs = all.filter((s) => !s.is_pto && s.scheduled > 0);
+    // PTO weeks count too: a PTO week with scheduled visits is real productivity.
+    const subs = all.filter((s) => s.scheduled > 0);
     const totalSched = subs.reduce((acc, s) => acc + s.scheduled, 0);
     const totalSeen = subs.reduce((acc, s) => acc + s.seen, 0);
     const totalAvail = subs.reduce((acc, s) => acc + (s.available || 0), 0);
@@ -198,7 +199,7 @@ function buildLocationSummaries(submissions: Submission[], roster: RosterEntry[]
       return s.locations.split(",").includes(loc);
     });
 
-    const nonPto = locSubs.filter((s) => !s.is_pto && s.scheduled > 0);
+    const nonPto = locSubs.filter((s) => s.scheduled > 0);
 
     let totalSched = 0;
     let totalSeen = 0;
@@ -645,7 +646,7 @@ function LocationView({ summaries }: { summaries: LocationSummary[] }) {
 
 // ---- Main Component ----
 
-type PeriodMode = "week" | "month" | "all";
+type PeriodMode = "week" | "month" | "range" | "all";
 
 function getAvailableWeeks(data: Submission[]): string[] {
   const weeks = new Set<string>();
@@ -674,8 +675,22 @@ function formatMonthLabel(ym: string): string {
   return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-function filterByPeriod(data: Submission[], mode: PeriodMode, selected: string): Submission[] {
+function filterByPeriod(
+  data: Submission[],
+  mode: PeriodMode,
+  selected: string,
+  rangeStart = "",
+  rangeEnd = ""
+): Submission[] {
   if (mode === "all") return data;
+  if (mode === "range") {
+    // Data is stored by week (keyed on the Monday), so a week is included when its
+    // start date falls on or between the two dates. Back-to-back ranges never double count.
+    return data.filter((s) => {
+      const week = s.week_start.split("T")[0];
+      return (!rangeStart || week >= rangeStart) && (!rangeEnd || week <= rangeEnd);
+    });
+  }
   if (mode === "week") {
     return data.filter((s) => s.week_start.split("T")[0] === selected);
   }
@@ -691,6 +706,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("staff");
   const [periodMode, setPeriodMode] = useState<PeriodMode>("all");
   const [selectedPeriod, setSelectedPeriod] = useState("");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
 
   function loadData() {
     setLoading(true);
@@ -750,16 +767,34 @@ export default function AdminDashboard() {
       setSelectedPeriod(availableWeeks[0]);
     } else if (mode === "month" && availableMonths.length > 0) {
       setSelectedPeriod(availableMonths[0]);
+    } else if (mode === "range") {
+      // Default the range to everything submitted so far; the user narrows it from there
+      setSelectedPeriod("");
+      if (!rangeStart && !rangeEnd && availableWeeks.length > 0) {
+        setRangeStart(availableWeeks[availableWeeks.length - 1]);
+        setRangeEnd(availableWeeks[0]);
+      }
     } else {
       setSelectedPeriod("");
     }
   }
 
-  const filteredData = filterByPeriod(data, periodMode, selectedPeriod);
+  const rangeInvalid = periodMode === "range" && !!rangeStart && !!rangeEnd && rangeStart > rangeEnd;
+  const filteredData = rangeInvalid
+    ? []
+    : filterByPeriod(data, periodMode, selectedPeriod, rangeStart, rangeEnd);
   const periodLabel = periodMode === "week" && selectedPeriod
     ? `Week of ${formatWeekLabel(selectedPeriod)}`
     : periodMode === "month" && selectedPeriod
     ? formatMonthLabel(selectedPeriod)
+    : periodMode === "range"
+    ? rangeStart && rangeEnd
+      ? `${formatWeekLabel(rangeStart)} – ${formatWeekLabel(rangeEnd)}`
+      : rangeStart
+      ? `From ${formatWeekLabel(rangeStart)}`
+      : rangeEnd
+      ? `Through ${formatWeekLabel(rangeEnd)}`
+      : "All Time"
     : "All Time";
 
   const staffSummaries = buildStaffSummaries(filteredData, roster);
@@ -789,7 +824,7 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-xl shadow p-4">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
           <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-            {(["week", "month", "all"] as PeriodMode[]).map((mode) => (
+            {(["week", "month", "range", "all"] as PeriodMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => handlePeriodModeChange(mode)}
@@ -799,7 +834,7 @@ export default function AdminDashboard() {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                {mode === "week" ? "Weekly" : mode === "month" ? "Monthly" : "All Time"}
+                {mode === "week" ? "Weekly" : mode === "month" ? "Monthly" : mode === "range" ? "Date Range" : "All Time"}
               </button>
             ))}
           </div>
@@ -829,10 +864,37 @@ export default function AdminDashboard() {
               ))}
             </select>
           )}
+          {periodMode === "range" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm text-gray-600" htmlFor="range-start">From</label>
+              <input
+                id="range-start"
+                type="date"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px] focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+              />
+              <label className="text-sm text-gray-600" htmlFor="range-end">to</label>
+              <input
+                id="range-end"
+                type="date"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[44px] focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+              />
+            </div>
+          )}
           <span className="text-sm text-gray-500 ml-auto">
             {filteredData.length} submission{filteredData.length !== 1 ? "s" : ""} — {periodLabel}
           </span>
         </div>
+        {periodMode === "range" && (
+          <p className={`text-xs mt-2 ${rangeInvalid ? "text-red-600" : "text-gray-400"}`}>
+            {rangeInvalid
+              ? "The start date is after the end date."
+              : "Includes every weekly submission whose week starts between these dates (weeks start on Mondays)."}
+          </p>
+        )}
       </div>
 
       {/* Clinic-wide headline stats */}
