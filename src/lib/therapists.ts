@@ -236,6 +236,18 @@ export function customStaffRowToTherapist(row: {
   };
 }
 
+// Apply an admin hours change (staff_hours_overrides) to a Therapist, recomputing
+// full-time status and the pro-rate factor the same way makeTherapist does.
+export function withHoursOverride(therapist: Therapist, newHours: number): Therapist {
+  const isFullTime = newHours >= FT_HOURS;
+  return {
+    ...therapist,
+    hoursPerWeek: newHours,
+    isFullTime,
+    proRateFactor: isFullTime ? 1.0 : Math.round((newHours / PRORATE_BASE) * 10000) / 10000,
+  };
+}
+
 export function getClinicalDirectors(): Therapist[] {
   return THERAPISTS.filter((t) => t.isClinicalDirector);
 }

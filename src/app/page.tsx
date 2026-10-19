@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { THERAPISTS, customStaffRowToTherapist, type Therapist } from "@/lib/therapists";
-import { getArchivedSlugs, getAllCustomStaff } from "@/lib/db";
+import { THERAPISTS, customStaffRowToTherapist, withHoursOverride, type Therapist } from "@/lib/therapists";
+import { getArchivedSlugs, getAllCustomStaff, getAllHoursOverrides } from "@/lib/db";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -11,23 +11,33 @@ export default async function Home() {
 
   let archivedSlugs: string[] = [];
   let customTherapists: Therapist[] = [];
+  let hoursOverrides: Record<string, number> = {};
 
   try {
-    const [archived, customRows] = await Promise.all([
+    const [archived, customRows, overrides] = await Promise.all([
       getArchivedSlugs(),
       getAllCustomStaff(),
+      getAllHoursOverrides().catch(() => ({} as Record<string, number>)),
     ]);
     archivedSlugs = archived;
     customTherapists = customRows.map(customStaffRowToTherapist);
+    hoursOverrides = overrides;
   } catch {
     // DB not available — show all hardcoded staff
   }
+
+  // Hours changed in Manage Staff are stored as overrides; apply them so the
+  // directory shows the same hours/pro-rate as the submit form and dashboard.
+  const applyOverride = (t: Therapist) =>
+    hoursOverrides[t.slug] !== undefined && hoursOverrides[t.slug] !== t.hoursPerWeek
+      ? withHoursOverride(t, hoursOverrides[t.slug])
+      : t;
 
   const archivedSet = new Set(archivedSlugs);
   const allTherapists = [
     ...THERAPISTS.filter((t) => !archivedSet.has(t.slug)),
     ...customTherapists.filter((t) => !archivedSet.has(t.slug)),
-  ];
+  ].map(applyOverride);
 
   const grouped: Record<string, Therapist[]> = {
     OTR: allTherapists.filter((t) => t.role === "OTR" && !t.isClinicalDirector),
