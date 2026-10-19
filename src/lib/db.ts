@@ -406,6 +406,42 @@ export async function getSubmissionsByDateRange(
   return rows as unknown as Submission[];
 }
 
+export async function getSubmissionsFromWeek(
+  therapistSlug: string,
+  weekStart: string
+): Promise<Submission[]> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM submissions
+    WHERE therapist_slug = ${therapistSlug} AND week_start >= ${weekStart}
+    ORDER BY week_start ASC
+  `;
+  return rows as unknown as Submission[];
+}
+
+export async function updateSubmissionAvailability(
+  id: number,
+  data: {
+    available: number;
+    utilization_rate: number | null;
+    arrival_rate: number | null;
+    bonus_amount: number;
+    eval_bonus: number;
+  }
+): Promise<void> {
+  const sql = getDb();
+  await sql`
+    UPDATE submissions SET
+      available = ${data.available},
+      utilization_rate = ${data.utilization_rate},
+      arrival_rate = ${data.arrival_rate},
+      bonus_amount = ${data.bonus_amount},
+      eval_bonus = ${data.eval_bonus},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${id}
+  `;
+}
+
 export async function deleteSubmission(
   therapistSlug: string,
   weekStart: string

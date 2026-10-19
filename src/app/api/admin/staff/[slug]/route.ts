@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, type SessionWithRole } from "@/lib/auth";
+import { applyAvailableOverrideToCurrentWeeks } from "@/lib/recalcAvailable";
 import { setUserArchived, upsertHoursOverride, upsertAvailableOverride, clearAvailableOverride, getCustomStaffBySlug, upsertCustomStaff, upsertSettingsOverride } from "@/lib/db";
 
 export async function PATCH(
@@ -51,7 +52,9 @@ export async function PATCH(
         return NextResponse.json({ error: "Invalid available slots value" }, { status: 400 });
       }
       await upsertAvailableOverride(slug, newSlots);
-      return NextResponse.json({ success: true, slug, availableSlots: newSlots });
+      // Also apply to weeks already submitted for the current week and later
+      const updatedWeeks = await applyAvailableOverrideToCurrentWeeks(slug, newSlots);
+      return NextResponse.json({ success: true, slug, availableSlots: newSlots, updatedWeeks });
     }
 
     // Handle work locations and/or noBonus update

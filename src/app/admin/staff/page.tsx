@@ -472,11 +472,6 @@ function StaffRow({
         fetch(`/api/admin/staff/${s.slug}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ availableSlots: newAvailable }),
-        }),
-        fetch(`/api/admin/staff/${s.slug}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ workLocations: editLocations, noBonus: editNoBonus }),
         }),
         fetch(`/api/admin/staff/${s.slug}`, {
@@ -485,6 +480,13 @@ function StaffRow({
           body: JSON.stringify({ adminTimeNote: editAdminTimeNote, additionalRolesNote: editAdditionalRolesNote }),
         }),
       ]);
+      // Run after the saves above: updating available visits also recalculates this
+      // week's submissions, which depends on the new hours and bonus setting.
+      await fetch(`/api/admin/staff/${s.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ availableSlots: newAvailable }),
+      });
       onStaffUpdated?.(s.slug, {
         hoursPerWeek: newHours,
         availableSlots: newAvailable,
