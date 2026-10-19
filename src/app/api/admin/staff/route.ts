@@ -11,7 +11,7 @@ import {
   getAllSettingsOverrides,
   createUserIfNotExists,
 } from "@/lib/db";
-import { THERAPISTS } from "@/lib/therapists";
+import { THERAPISTS, getStaffEmail } from "@/lib/therapists";
 import { LOCATIONS } from "@/lib/therapists";
 
 export async function GET() {
@@ -62,7 +62,7 @@ export async function GET() {
       hoursPerWeek: Number(c.hours_per_week),
       availableSlots: availableOverrides[c.slug] ?? null,
       workLocations: c.work_locations ? c.work_locations.split(",").filter(Boolean) : [],
-      email: c.email || "",
+      email: getStaffEmail(c.name, c.role, c.email) || "",
       hireDate: c.hire_date || "",
       noBonus: c.no_bonus,
       isClinicalDirector: c.is_clinical_director,

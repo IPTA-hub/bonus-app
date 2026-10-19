@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { getAllUsers, initPasswordResetTable, createPasswordResetToken } from "@/lib/db";
+import { getAllUsers, getAllCustomStaff, initPasswordResetTable, createPasswordResetToken } from "@/lib/db";
 import { randomBytes } from "crypto";
-import { THERAPISTS } from "@/lib/therapists";
+import { THERAPISTS, customStaffRowToTherapist } from "@/lib/therapists";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,8 +11,9 @@ export async function POST(request: NextRequest) {
 
     await initPasswordResetTable();
 
-    // Find therapist with this email
-    const therapist = THERAPISTS.find(
+    // Find therapist with this email (hardcoded staff and staff added via Manage Staff)
+    const customStaff = await getAllCustomStaff().catch(() => []);
+    const therapist = [...THERAPISTS, ...customStaff.map(customStaffRowToTherapist)].find(
       (t) => t.email?.toLowerCase() === email.toLowerCase()
     );
 

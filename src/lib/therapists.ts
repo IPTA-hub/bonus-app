@@ -16,6 +16,23 @@ export interface Therapist {
 }
 
 const FT_HOURS = 32;
+
+const STAFF_EMAIL_DOMAIN = "integratedpeds.com";
+
+// Everyone except the Music Therapy team (who have their own elevatemusictherapy.com
+// addresses) gets first name + last initial @integratedpeds.com, e.g. Kiana Atencio -> kianaa@
+export function getStaffEmail(name: string, role: string, storedEmail?: string | null): string | undefined {
+  if (role === "MT") return storedEmail || undefined;
+  const parts = name
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((p) => p.replace(/[^a-z]/g, ""))
+    .filter(Boolean);
+  if (parts.length === 0) return storedEmail || undefined;
+  const lastInitial = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return `${parts[0]}${lastInitial}@${STAFF_EMAIL_DOMAIN}`;
+}
 const PRORATE_BASE = 40; // Pro-rate factor based on 40-hour work week
 
 function makeTherapist(
@@ -46,7 +63,7 @@ function makeTherapist(
     directorLocation: opts?.directorLocation,
     hireDate: opts?.hireDate,
     workLocations: opts?.workLocations || [],
-    email: opts?.email,
+    email: getStaffEmail(name, role, opts?.email),
     noBonus: opts?.noBonus || false,
     hasDirectorAccess: opts?.hasDirectorAccess || false,
   };
@@ -231,7 +248,7 @@ export function customStaffRowToTherapist(row: {
     directorLocation: row.director_location ?? undefined,
     hireDate: row.hire_date ?? undefined,
     workLocations: row.work_locations ? row.work_locations.split(",").filter(Boolean) : [],
-    email: row.email ?? undefined,
+    email: getStaffEmail(row.name, row.role, row.email),
     noBonus: row.no_bonus,
   };
 }
