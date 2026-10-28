@@ -18,6 +18,8 @@ import type { Submission } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
 import ClinicalDirectorDashboard from "./ClinicalDirectorDashboard";
 import MissingSubmissions from "./MissingSubmissions";
+import VisitsSeenView from "./VisitsSeenView";
+import { compareByLastName } from "@/lib/sortStaff";
 
 function getBarColor(rate: number): string {
   if (rate >= 1.0) return "#16a34a";
@@ -277,20 +279,7 @@ function buildLocationSummaries(submissions: Submission[], roster: RosterEntry[]
 
 // ---- Tab Components ----
 
-type Tab = "staff" | "discipline" | "location" | "directors" | "submissions";
-
-// Sort alphabetically by last name (the last word of the name), then first name
-function lastNameOf(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts[parts.length - 1];
-}
-
-function compareByLastName(a: { name: string }, b: { name: string }): number {
-  return (
-    lastNameOf(a.name).localeCompare(lastNameOf(b.name), undefined, { sensitivity: "base" }) ||
-    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-  );
-}
+type Tab = "staff" | "visits" | "discipline" | "location" | "directors" | "submissions";
 
 function StaffView({ summaries: allSummaries }: { summaries: StaffSummary[] }) {
   // Inactive (archived) staff with no data in this period are hidden
@@ -856,6 +845,7 @@ export default function AdminDashboard() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "staff", label: "By Staff" },
+    { key: "visits", label: "Visits Seen" },
     { key: "submissions", label: "Submissions" },
     { key: "discipline", label: "By Discipline" },
     { key: "location", label: "By Location" },
@@ -987,6 +977,7 @@ export default function AdminDashboard() {
       {/* Tab content */}
       {activeTab === "submissions" && <MissingSubmissions />}
       {activeTab === "staff" && <StaffView summaries={staffSummaries} />}
+      {activeTab === "visits" && <VisitsSeenView data={filteredData} roster={roster} periodLabel={periodLabel} />}
       {activeTab === "discipline" && <DisciplineView summaries={disciplineSummaries} />}
       {activeTab === "location" && <LocationView summaries={locationSummaries} />}
       {activeTab === "directors" && <ClinicalDirectorDashboard />}
