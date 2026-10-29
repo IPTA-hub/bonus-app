@@ -28,7 +28,7 @@ export async function GET() {
       getArchivedSlugs(),
       getAllHoursOverrides(),
       getAllAvailableOverrides(),
-      getAllSettingsOverrides().catch(() => ({} as Record<string, { work_locations: string; no_bonus: boolean; admin_time_note: string; additional_roles_note: string }>)),
+      getAllSettingsOverrides().catch(() => ({} as Record<string, { work_locations: string; no_bonus: boolean; admin_time_note: string; additional_roles_note: string; reports_to: string }>)),
     ]);
 
     const archivedSet = new Set(archivedSlugs);
@@ -50,6 +50,8 @@ export async function GET() {
         directorLocation: t.directorLocation || "",
         adminTimeNote: settings?.admin_time_note || "",
         additionalRolesNote: settings?.additional_roles_note || "",
+        reportsTo: settings?.reports_to || "",
+        hasDirectorAccess: !!t.hasDirectorAccess,
         isCustom: false,
         isArchived: archivedSet.has(t.slug),
       };
@@ -69,6 +71,8 @@ export async function GET() {
       directorLocation: c.director_location || "",
       adminTimeNote: c.admin_time_note || "",
       additionalRolesNote: c.additional_roles_note || "",
+      reportsTo: c.reports_to || "",
+      hasDirectorAccess: false,
       isCustom: true,
       isArchived: archivedSet.has(c.slug),
     }));
@@ -103,6 +107,7 @@ export async function POST(request: NextRequest) {
       directorLocation,
       adminTimeNote,
       additionalRolesNote,
+      reportsTo,
     } = body;
 
     if (!name || !role) {
@@ -133,6 +138,7 @@ export async function POST(request: NextRequest) {
       no_bonus: Boolean(noBonus),
       admin_time_note: adminTimeNote || "",
       additional_roles_note: additionalRolesNote || "",
+      reports_to: reportsTo || "",
     });
 
     // Create user account (won't overwrite if already exists)

@@ -21,6 +21,7 @@ import MissingSubmissions from "./MissingSubmissions";
 import VisitsSeenView from "./VisitsSeenView";
 import { compareByLastName } from "@/lib/sortStaff";
 import { consolidateWeeks } from "@/lib/weeks";
+import { localTodayString, lowArrivalStreaks, LOW_ARRIVAL_THRESHOLD, type LowArrival } from "@/lib/weeklyStatus";
 
 function getBarColor(rate: number): string {
   if (rate >= 1.0) return "#16a34a";
@@ -282,7 +283,24 @@ function buildLocationSummaries(submissions: Submission[], roster: RosterEntry[]
 
 type Tab = "staff" | "visits" | "discipline" | "location" | "directors" | "submissions";
 
-function StaffView({ summaries: allSummaries }: { summaries: StaffSummary[] }) {
+function LowArrivalBadge({ alert }: { alert: LowArrival }) {
+  return (
+    <span
+      className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"
+      title={alert.weeks.map((w) => `Week of ${w.week}: ${Math.round(w.rate * 100)}%`).join("\n")}
+    >
+      Below {Math.round(LOW_ARRIVAL_THRESHOLD * 100)}% for {alert.streak} wks
+    </span>
+  );
+}
+
+function StaffView({
+  summaries: allSummaries,
+  alerts,
+}: {
+  summaries: StaffSummary[];
+  alerts: Record<string, LowArrival>;
+}) {
   // Inactive (archived) staff with no data in this period are hidden
   const summaries = allSummaries
     .filter((s) => s.isVisible)
@@ -372,6 +390,7 @@ function StaffView({ summaries: allSummaries }: { summaries: StaffSummary[] }) {
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-ipta-teal-50 text-ipta-teal">
                         {s.role}
                       </span>
+                      {alerts[s.slug] && <LowArrivalBadge alert={alerts[s.slug]} />}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-600">
                       {s.locations.length > 0 ? s.locations.join(", ") : "-"}
@@ -432,6 +451,11 @@ function StaffView({ summaries: allSummaries }: { summaries: StaffSummary[] }) {
                   {s.role}
                 </span>
               </div>
+              {alerts[s.slug] && (
+                <div className="mb-3">
+                  <LowArrivalBadge alert={alerts[s.slug]} />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <p className="text-xs text-gray-500">Utilization</p>
@@ -832,6 +856,10 @@ export default function AdminDashboard() {
       : "All Time"
     : "All Time";
 
+  // Staff whose arrival rate has been under 80% for 2+ weeks in a row as of now
+  // (uses all submitted weeks, regardless of the period selected above)
+  const lowArrival = lowArrivalStreaks(roster, data, localTodayString());
+
   const staffSummaries = buildStaffSummaries(filteredData, roster);
   const disciplineSummaries = buildDisciplineSummaries(staffSummaries);
   const locationSummaries = buildLocationSummaries(filteredData, roster);
@@ -978,7 +1006,7 @@ export default function AdminDashboard() {
 
       {/* Tab content */}
       {activeTab === "submissions" && <MissingSubmissions />}
-      {activeTab === "staff" && <StaffView summaries={staffSummaries} />}
+      {activeTab === "staff" && <StaffView summaries={staffSummaries} alerts={lowArrival} />}
       {activeTab === "visits" && <VisitsSeenView data={filteredData} roster={roster} periodLabel={periodLabel} />}
       {activeTab === "discipline" && <DisciplineView summaries={disciplineSummaries} />}
       {activeTab === "location" && <LocationView summaries={locationSummaries} />}

@@ -15,6 +15,8 @@ export interface SubmissionLike {
   therapist_slug: string;
   week_start: string;
   scheduled: number;
+  seen?: number;
+  arrival_rate?: number | null;
   created_at?: string;
 }
 
@@ -102,6 +104,47 @@ export function lateHistory(
       if (!s) r.missing++;
       else if (s.created_at && new Date(s.created_at).getTime() > due) r.late++;
     }
+  }
+  return result;
+}
+
+export const LOW_ARRIVAL_THRESHOLD = 0.8;
+export const LOW_ARRIVAL_MIN_WEEKS = 2;
+
+export interface LowArrival {
+  streak: number; // consecutive weeks below the threshold, counting back from the latest
+  weeks: { week: string; rate: number }[]; // most recent first
+}
+
+// Staff whose arrival rate has been below 80% for 2+ weeks in a row. Walks back from the
+// most recent completed week. Weeks with no submission or no scheduled visits are skipped
+// (they neither add to nor break the streak); the first week at/above 80% ends it.
+// Uses each week's stored arrival rate, the same figure shown on the staff dashboards.
+export function lowArrivalStreaks(
+  staff: StaffLike[],
+  submissions: SubmissionLike[],
+  todayStr: string,
+  maxWeeks = 12
+): Record<string, LowArrival> {
+  const byKey = new Map<string, SubmissionLike>();
+  for (const s of consolidateWeeks(submissions)) {
+    byKey.set(`${s.therapist_slug}|${s.week_start.split("T")[0]}`, s);
+  }
+  const result: Record<string, LowArrival> = {};
+  for (const t of staff) {
+    if (t.isArchived) continue;
+    const weeks: { week: string; rate: number }[] = [];
+    let week = previousWeekStart(todayStr);
+    for (let i = 0; i < maxWeeks; i++, week = addDays(week, -7)) {
+      const s = byKey.get(`${t.slug}|${week}`);
+      const sched = s ? Number(s.scheduled) : 0;
+      if (!s || !(sched > 0)) continue;
+      const stored = s.arrival_rate === null || s.arrival_rate === undefined ? NaN : Number(s.arrival_rate);
+      const rate = Number.isFinite(stored) ? stored : (Number(s.seen) || 0) / sched;
+      if (rate < LOW_ARRIVAL_THRESHOLD) weeks.push({ week, rate });
+      else break;
+    }
+    if (weeks.length >= LOW_ARRIVAL_MIN_WEEKS) result[t.slug] = { streak: weeks.length, weeks };
   }
   return result;
 }

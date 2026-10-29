@@ -97,6 +97,7 @@ async function _runMigrations() {
   `;
   await sql`ALTER TABLE custom_staff ADD COLUMN IF NOT EXISTS admin_time_note TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE custom_staff ADD COLUMN IF NOT EXISTS additional_roles_note TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE custom_staff ADD COLUMN IF NOT EXISTS reports_to VARCHAR(100) NOT NULL DEFAULT ''`;
   // Overrides table — stores hours changes for any staff (hardcoded or custom)
   await sql`
     CREATE TABLE IF NOT EXISTS staff_hours_overrides (
@@ -124,6 +125,7 @@ async function _runMigrations() {
   `;
   await sql`ALTER TABLE staff_settings_overrides ADD COLUMN IF NOT EXISTS admin_time_note TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE staff_settings_overrides ADD COLUMN IF NOT EXISTS additional_roles_note TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE staff_settings_overrides ADD COLUMN IF NOT EXISTS reports_to VARCHAR(100) NOT NULL DEFAULT ''`;
   // Ensure director-level staff have the correct user role.
   // createUserIfNotExists uses ON CONFLICT DO NOTHING, so accounts created before
   // the director role was introduced may still have role='therapist'.
@@ -595,6 +597,7 @@ export interface CustomStaffRow {
   no_bonus: boolean;
   admin_time_note: string;
   additional_roles_note: string;
+  reports_to: string;
 }
 
 export async function getAllCustomStaff(): Promise<CustomStaffRow[]> {
@@ -675,6 +678,7 @@ interface SettingsOverride {
   no_bonus: boolean;
   admin_time_note: string;
   additional_roles_note: string;
+  reports_to: string;
 }
 
 // Merges the given fields onto whatever override already exists (or hardcoded-staff
@@ -684,6 +688,7 @@ export async function upsertSettingsOverride(slug: string, updates: {
   noBonus?: boolean;
   adminTimeNote?: string;
   additionalRolesNote?: string;
+  reportsTo?: string;
 }): Promise<void> {
   const sql = getDb();
   const current = await getSettingsOverride(slug);
@@ -692,32 +697,34 @@ export async function upsertSettingsOverride(slug: string, updates: {
     no_bonus: updates.noBonus !== undefined ? updates.noBonus : (current?.no_bonus ?? false),
     admin_time_note: updates.adminTimeNote !== undefined ? updates.adminTimeNote : (current?.admin_time_note ?? ""),
     additional_roles_note: updates.additionalRolesNote !== undefined ? updates.additionalRolesNote : (current?.additional_roles_note ?? ""),
+    reports_to: updates.reportsTo !== undefined ? updates.reportsTo : (current?.reports_to ?? ""),
   };
   await sql`
-    INSERT INTO staff_settings_overrides (slug, work_locations, no_bonus, admin_time_note, additional_roles_note, updated_at)
-    VALUES (${slug}, ${merged.work_locations}, ${merged.no_bonus}, ${merged.admin_time_note}, ${merged.additional_roles_note}, CURRENT_TIMESTAMP)
+    INSERT INTO staff_settings_overrides (slug, work_locations, no_bonus, admin_time_note, additional_roles_note, reports_to, updated_at)
+    VALUES (${slug}, ${merged.work_locations}, ${merged.no_bonus}, ${merged.admin_time_note}, ${merged.additional_roles_note}, ${merged.reports_to}, CURRENT_TIMESTAMP)
     ON CONFLICT (slug) DO UPDATE SET
       work_locations = EXCLUDED.work_locations,
       no_bonus = EXCLUDED.no_bonus,
       admin_time_note = EXCLUDED.admin_time_note,
       additional_roles_note = EXCLUDED.additional_roles_note,
+      reports_to = EXCLUDED.reports_to,
       updated_at = CURRENT_TIMESTAMP
   `;
 }
 
 export async function getSettingsOverride(slug: string): Promise<SettingsOverride | null> {
   const sql = getDb();
-  const rows = await sql`SELECT work_locations, no_bonus, admin_time_note, additional_roles_note FROM staff_settings_overrides WHERE slug = ${slug} LIMIT 1`;
+  const rows = await sql`SELECT work_locations, no_bonus, admin_time_note, additional_roles_note, reports_to FROM staff_settings_overrides WHERE slug = ${slug} LIMIT 1`;
   return rows.length > 0 ? (rows[0] as unknown as SettingsOverride) : null;
 }
 
 export async function getAllSettingsOverrides(): Promise<Record<string, SettingsOverride>> {
   const sql = getDb();
-  const rows = await sql`SELECT slug, work_locations, no_bonus, admin_time_note, additional_roles_note FROM staff_settings_overrides`;
+  const rows = await sql`SELECT slug, work_locations, no_bonus, admin_time_note, additional_roles_note, reports_to FROM staff_settings_overrides`;
   const result: Record<string, SettingsOverride> = {};
   for (const r of rows) {
     const row = r as { slug: string } & SettingsOverride;
-    result[row.slug] = { work_locations: row.work_locations, no_bonus: row.no_bonus, admin_time_note: row.admin_time_note, additional_roles_note: row.additional_roles_note };
+    result[row.slug] = { work_locations: row.work_locations, no_bonus: row.no_bonus, admin_time_note: row.admin_time_note, additional_roles_note: row.additional_roles_note, reports_to: row.reports_to ?? "" };
   }
   return result;
 }
@@ -736,13 +743,15 @@ export async function upsertCustomStaff(data: {
   no_bonus: boolean;
   admin_time_note?: string;
   additional_roles_note?: string;
+  reports_to?: string;
 }): Promise<void> {
   const sql = getDb();
   const adminTimeNote = data.admin_time_note ?? "";
   const additionalRolesNote = data.additional_roles_note ?? "";
+  const reportsTo = data.reports_to ?? "";
   await sql`
-    INSERT INTO custom_staff (slug, name, role, hours_per_week, expected_visits, is_clinical_director, director_location, hire_date, work_locations, email, no_bonus, admin_time_note, additional_roles_note)
-    VALUES (${data.slug}, ${data.name}, ${data.role}, ${data.hours_per_week}, ${data.expected_visits}, ${data.is_clinical_director}, ${data.director_location}, ${data.hire_date}, ${data.work_locations}, ${data.email}, ${data.no_bonus}, ${adminTimeNote}, ${additionalRolesNote})
+    INSERT INTO custom_staff (slug, name, role, hours_per_week, expected_visits, is_clinical_director, director_location, hire_date, work_locations, email, no_bonus, admin_time_note, additional_roles_note, reports_to)
+    VALUES (${data.slug}, ${data.name}, ${data.role}, ${data.hours_per_week}, ${data.expected_visits}, ${data.is_clinical_director}, ${data.director_location}, ${data.hire_date}, ${data.work_locations}, ${data.email}, ${data.no_bonus}, ${adminTimeNote}, ${additionalRolesNote}, ${reportsTo})
     ON CONFLICT (slug) DO UPDATE SET
       name = EXCLUDED.name,
       role = EXCLUDED.role,
@@ -755,6 +764,7 @@ export async function upsertCustomStaff(data: {
       email = EXCLUDED.email,
       no_bonus = EXCLUDED.no_bonus,
       admin_time_note = EXCLUDED.admin_time_note,
-      additional_roles_note = EXCLUDED.additional_roles_note
+      additional_roles_note = EXCLUDED.additional_roles_note,
+      reports_to = EXCLUDED.reports_to
   `;
 }

@@ -19,6 +19,8 @@ interface StaffMember {
   directorLocation: string;
   adminTimeNote: string;
   additionalRolesNote: string;
+  reportsTo: string;
+  hasDirectorAccess?: boolean;
   isCustom: boolean;
   isArchived: boolean;
 }
@@ -36,6 +38,7 @@ const emptyForm = {
   directorLocation: "",
   adminTimeNote: "",
   additionalRolesNote: "",
+  reportsTo: "",
 };
 
 export default function StaffManagementPage() {
@@ -119,6 +122,7 @@ export default function StaffManagementPage() {
           directorLocation: form.directorLocation,
           adminTimeNote: form.adminTimeNote,
           additionalRolesNote: form.additionalRolesNote,
+          reportsTo: form.reportsTo,
         }),
       });
       const data = await res.json();
@@ -144,6 +148,11 @@ export default function StaffManagementPage() {
 
   const activeStaff = staff.filter((s) => !s.isArchived);
   const archivedStaff = staff.filter((s) => s.isArchived);
+  // Directors a staff member can report to (they receive that person's arrival-rate alerts)
+  const directors = activeStaff
+    .filter((s) => s.isClinicalDirector || s.role === "Director" || s.hasDirectorAccess)
+    .map((s) => ({ slug: s.slug, name: s.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-ipta-teal-50 to-white py-8 px-4">
@@ -301,6 +310,23 @@ export default function StaffManagementPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reports To
+                  <span className="ml-1 text-gray-400 font-normal">(gets this person&apos;s low arrival rate alerts)</span>
+                </label>
+                <select
+                  value={form.reportsTo}
+                  onChange={(e) => setForm((p) => ({ ...p, reportsTo: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal text-sm"
+                >
+                  <option value="">Not assigned</option>
+                  {directors.map((d) => (
+                    <option key={d.slug} value={d.slug}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex flex-wrap gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -366,6 +392,7 @@ export default function StaffManagementPage() {
                   key={s.slug}
                   staff={s}
                   archiving={archiving === s.slug}
+                  directors={directors}
                   onArchive={() => handleArchive(s.slug, true)}
                   onStaffUpdated={handleStaffUpdated}
                 />
@@ -393,6 +420,7 @@ export default function StaffManagementPage() {
                     key={s.slug}
                     staff={s}
                     archiving={archiving === s.slug}
+                    directors={directors}
                     onUnarchive={() => handleArchive(s.slug, false)}
                     onStaffUpdated={handleStaffUpdated}
                     isArchived
@@ -410,6 +438,7 @@ export default function StaffManagementPage() {
 function StaffRow({
   staff: s,
   archiving,
+  directors,
   onArchive,
   onUnarchive,
   onStaffUpdated,
@@ -417,6 +446,7 @@ function StaffRow({
 }: {
   staff: StaffMember;
   archiving: boolean;
+  directors: { slug: string; name: string }[];
   onArchive?: () => void;
   onUnarchive?: () => void;
   onStaffUpdated?: (slug: string, updates: Partial<StaffMember>) => void;
@@ -429,6 +459,7 @@ function StaffRow({
   const [editNoBonus, setEditNoBonus] = useState(s.noBonus);
   const [editAdminTimeNote, setEditAdminTimeNote] = useState(s.adminTimeNote);
   const [editAdditionalRolesNote, setEditAdditionalRolesNote] = useState(s.additionalRolesNote);
+  const [editReportsTo, setEditReportsTo] = useState(s.reportsTo);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -439,6 +470,7 @@ function StaffRow({
     setEditNoBonus(s.noBonus);
     setEditAdminTimeNote(s.adminTimeNote);
     setEditAdditionalRolesNote(s.additionalRolesNote);
+    setEditReportsTo(s.reportsTo);
     setSaveError("");
     setExpanded(true);
   }
@@ -479,6 +511,11 @@ function StaffRow({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ adminTimeNote: editAdminTimeNote, additionalRolesNote: editAdditionalRolesNote }),
         }),
+        fetch(`/api/admin/staff/${s.slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportsTo: editReportsTo }),
+        }),
       ]);
       // Run after the saves above: updating available visits also recalculates this
       // week's submissions, which depends on the new hours and bonus setting.
@@ -494,6 +531,7 @@ function StaffRow({
         noBonus: editNoBonus,
         adminTimeNote: editAdminTimeNote,
         additionalRolesNote: editAdditionalRolesNote,
+        reportsTo: editReportsTo,
       });
       setExpanded(false);
     } catch {
@@ -536,6 +574,11 @@ function StaffRow({
               {s.adminTimeNote && `Admin time: ${s.adminTimeNote}`}
               {s.adminTimeNote && s.additionalRolesNote && " · "}
               {s.additionalRolesNote && `Additional roles: ${s.additionalRolesNote}`}
+            </p>
+          )}
+          {s.reportsTo && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              Reports to: {directors.find((d) => d.slug === s.reportsTo)?.name || s.reportsTo}
             </p>
           )}
         </div>
@@ -644,6 +687,23 @@ function StaffRow({
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Reports To
+              <span className="ml-1 text-gray-400 font-normal">(gets this person&apos;s low arrival rate alerts)</span>
+            </label>
+            <select
+              value={editReportsTo}
+              onChange={(e) => setEditReportsTo(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+            >
+              <option value="">Not assigned</option>
+              {directors.map((d) => (
+                <option key={d.slug} value={d.slug}>{d.name}</option>
+              ))}
+            </select>
           </div>
 
           <div>

@@ -89,6 +89,18 @@ export async function PATCH(
       return NextResponse.json({ success: true, slug });
     }
 
+    // Handle "reports to" (which director gets this person's alerts); "" clears it
+    if (body.reportsTo !== undefined) {
+      const reportsTo = String(body.reportsTo);
+      const customRow = await getCustomStaffBySlug(slug);
+      if (customRow) {
+        await upsertCustomStaff({ ...customRow, reports_to: reportsTo });
+      } else {
+        await upsertSettingsOverride(slug, { reportsTo });
+      }
+      return NextResponse.json({ success: true, slug, reportsTo });
+    }
+
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   } catch (error) {
     console.error("Update staff error:", error);
