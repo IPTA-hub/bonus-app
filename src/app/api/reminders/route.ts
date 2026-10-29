@@ -18,6 +18,9 @@ import { auth, type SessionWithRole } from "@/lib/auth";
 //   ?mode=summary   Monday end of day: list of who is still missing, sent to the directors
 // Add &dry=1 to any mode to see who WOULD be emailed without sending anything.
 
+// Staff who get the Monday summary in addition to the directors
+const SUMMARY_EXTRA_RECIPIENTS = new Set(["taneal-behm"]);
+
 function safeIso(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const d = v instanceof Date ? v : new Date(String(v));
@@ -103,9 +106,11 @@ export async function GET(request: NextRequest) {
       const missing = expected.filter((t) => !submitted.has(t.slug));
       const history = lateHistory(allStaff, submissions, today, Date.now());
 
-      // Directors and Nicole Summerson (role "Director")
+      // Directors, Nicole Summerson (role "Director"), and Taneal Behm (clinic owner)
       const recipients = allStaff.filter(
-        (t) => (t.isClinicalDirector || t.role === "Director" || t.hasDirectorAccess) && t.email
+        (t) =>
+          (t.isClinicalDirector || t.role === "Director" || t.hasDirectorAccess || SUMMARY_EXTRA_RECIPIENTS.has(t.slug)) &&
+          t.email
       );
 
       const rows = missing
