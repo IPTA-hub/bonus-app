@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAllSubmissions, getAllCustomStaff, getArchivedSlugs } from "@/lib/db";
 import { THERAPISTS, customStaffRowToTherapist } from "@/lib/therapists";
+import { mondayOf } from "@/lib/weeks";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -64,7 +65,8 @@ export async function GET(request: NextRequest) {
     const submittedSlugs = new Set(
       submissions
         .filter((s) => {
-          const weekDate = new Date(s.week_start).toISOString().split("T")[0];
+          // A submission dated Tuesday etc. still counts for its Monday week
+          const weekDate = mondayOf(new Date(s.week_start).toISOString());
           return weekDate === currentMonday;
         })
         .map((s) => s.therapist_slug)

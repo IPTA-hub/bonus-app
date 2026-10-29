@@ -20,6 +20,7 @@ import ClinicalDirectorDashboard from "./ClinicalDirectorDashboard";
 import MissingSubmissions from "./MissingSubmissions";
 import VisitsSeenView from "./VisitsSeenView";
 import { compareByLastName } from "@/lib/sortStaff";
+import { consolidateWeeks } from "@/lib/weeks";
 
 function getBarColor(rate: number): string {
   if (rate >= 1.0) return "#16a34a";
@@ -758,7 +759,8 @@ export default function AdminDashboard() {
       }),
     ])
       .then(([submissions, staffResp]) => {
-        setData(Array.isArray(submissions) ? submissions : []);
+        // Fold Tuesday-dated (or other non-Monday) weeks into their Monday week for display
+        setData(Array.isArray(submissions) ? consolidateWeeks<Submission>(submissions) : []);
         setRoster(Array.isArray(staffResp?.staff) ? staffResp.staff : []);
       })
       .catch((err) => {

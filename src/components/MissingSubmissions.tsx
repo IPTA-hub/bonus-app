@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Submission } from "@/lib/db";
+import { mondayOf } from "@/lib/weeks";
 
 function getMondayOfWeek(date: Date): string {
   const d = new Date(date);
@@ -45,7 +46,8 @@ export default function MissingSubmissions() {
         const submittedSlugs = new Set(
           data
             .filter((s) => {
-              const weekDate = new Date(s.week_start).toISOString().split("T")[0];
+              // A submission dated Tuesday etc. still counts for its Monday week
+              const weekDate = mondayOf(new Date(s.week_start).toISOString());
               return weekDate === currentMonday;
             })
             .map((s) => s.therapist_slug)

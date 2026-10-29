@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Submission } from "@/lib/db";
 import { LOCATIONS, getYearsOfService } from "@/lib/therapists";
+import { consolidateWeeks } from "@/lib/weeks";
 
 // Roster shape from /api/admin/staff — covers hardcoded staff AND staff
 // added through Manage Staff (custom_staff table), unlike the static
@@ -278,7 +279,7 @@ export default function ClinicalDirectorDashboard() {
       fetch("/api/admin/staff").then((r) => r.json()),
     ])
       .then(([d, staffResp]) => {
-        setData(Array.isArray(d) ? d : []);
+        setData(Array.isArray(d) ? consolidateWeeks<Submission>(d) : []);
         setRoster(Array.isArray(staffResp?.staff) ? staffResp.staff : []);
       })
       .catch(() => { setData([]); setRoster([]); })
