@@ -18,6 +18,12 @@ import { auth, type SessionWithRole } from "@/lib/auth";
 //   ?mode=summary   Monday end of day: list of who is still missing, sent to the directors
 // Add &dry=1 to any mode to see who WOULD be emailed without sending anything.
 
+function safeIso(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const d = v instanceof Date ? v : new Date(String(v));
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -78,11 +84,11 @@ export async function GET(request: NextRequest) {
       getArchivedSlugs(),
     ]);
     // The database driver returns real Date objects here; use ISO strings like the browser sees
-    const submissions = rawSubmissions.map((s) => ({
-      ...s,
-      week_start: new Date(s.week_start).toISOString(),
-      created_at: s.created_at ? new Date(s.created_at).toISOString() : s.created_at,
-    }));
+    const submissions = rawSubmissions.flatMap((s) => {
+      const week = safeIso(s.week_start);
+      if (!week) return []; // skip a row with an unreadable date instead of failing the whole run
+      return [{ ...s, week_start: week, created_at: safeIso(s.created_at) ?? s.created_at }];
+    });
     // Archived (inactive) staff shouldn't get emails
     const archivedSet = new Set(archivedSlugs);
     const allStaff: Therapist[] = [...THERAPISTS, ...customStaff.map(customStaffRowToTherapist)].filter(
@@ -253,7 +259,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Reminder error:", error);
     return NextResponse.json(
-      { error: "Failed to send reminders", details: String(error) },
+      {
+        error: "Failed to send reminders",
+        details: String(error),
+        // Only authorized callers reach this point, so the location is safe to show
+        stack: error instanceof Error ? error.stack?.split("\n").slice(0, 6) : undefined,
+      },
       { status: 500 }
     );
   }

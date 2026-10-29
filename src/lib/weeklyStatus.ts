@@ -18,6 +18,12 @@ export interface SubmissionLike {
   created_at?: string;
 }
 
+// "YYYY-MM-DD" for a date that may arrive as a Date object (server) or a string (browser)
+export function dateOnly(v: unknown): string {
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v.toISOString().split("T")[0];
+  return String(v ?? "").slice(0, 10);
+}
+
 export function addDays(dateStr: string, n: number): string {
   const d = new Date(dateStr + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + n);
@@ -52,7 +58,7 @@ export function weekDueMs(weekStart: string): number {
 export function expectedStaff<T extends StaffLike>(staff: T[], weekStart: string): T[] {
   const weekEnd = addDays(weekStart, 6);
   return staff.filter(
-    (t) => !t.isArchived && (!t.hireDate || String(t.hireDate).slice(0, 10) <= weekEnd)
+    (t) => !t.isArchived && (!t.hireDate || !dateOnly(t.hireDate) || dateOnly(t.hireDate) <= weekEnd)
   );
 }
 

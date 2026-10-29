@@ -8,6 +8,7 @@ export function mondayOf(dateStr: string | Date): string {
   // Server-side database reads give real Date objects; the browser gets ISO strings
   const day = (dateStr instanceof Date ? dateStr.toISOString() : String(dateStr)).split("T")[0];
   const d = new Date(day + "T00:00:00Z");
+  if (isNaN(d.getTime())) return day; // unparseable: leave as is rather than throw
   const dow = d.getUTCDay(); // 0 = Sunday
   const offset = dow === 0 ? 1 : -(dow - 1);
   d.setUTCDate(d.getUTCDate() + offset);
