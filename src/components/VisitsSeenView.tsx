@@ -17,6 +17,9 @@ type Grouping = "week" | "month";
 // person vanishing); everyone else only appears if they have a submission in the period.
 const CLINICAL_ROLES = new Set(["OTR", "COTA", "SLP", "MT"]);
 
+// Teams that don't report patient visits, so they never appear on this tab
+const EXCLUDED_ROLES = new Set(["PCC", "PCC-Asst", "Marketing", "Equine"]);
+
 function weekOf(s: Submission): string {
   return s.week_start.split("T")[0];
 }
@@ -67,6 +70,7 @@ export default function VisitsSeenView({
   const columns = Array.from(columnSet).sort();
 
   const rows = roster
+    .filter((t) => !EXCLUDED_ROLES.has(t.role))
     .filter((t) => (!t.isArchived && CLINICAL_ROLES.has(t.role)) || !!seen[t.slug])
     .sort(compareByLastName);
 
