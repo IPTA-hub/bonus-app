@@ -3,19 +3,15 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
+import { localMondayOf } from "@/lib/weeks";
 import type { Therapist } from "@/lib/therapists";
 import type { Submission, MarketingBonusData } from "@/lib/db";
 import { LOCATIONS } from "@/lib/therapists";
 import { UTILIZATION_THRESHOLD, EVAL_BONUS_AMOUNT, EVAL_BONUS_THRESHOLD, getBonusTiersForHours, getHoursTier, getHoursTierLabel, CD_INDIVIDUAL_TIERS, CD_MIN_UTILIZATION, NICOLE_INDIVIDUAL_TIERS, NICOLE_MIN_PATIENTS, COMPANY_PRODUCTIVITY_TIERS, RECRUITMENT_BONUS_AMOUNT, PCC_RESCHEDULE_RATE, PCC_EVAL_BONUS_AMOUNT, EQUINE_WALK_RATE, EQUINE_BIANNUAL_BONUS, SPONSORSHIP_RATE, SPONSORSHIP_SLUG, isEligibleForBiannualBonus, getNextBiannualDate, RETENTION_TIERS, getRetentionBonus } from "@/lib/bonus";
 import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
 
-function getMondayOfWeek(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split("T")[0];
-}
+// Local-calendar Monday (see lib/weeks.ts; the old toISOString version produced Tuesday weeks)
+const getMondayOfWeek = localMondayOf;
 
 interface LocationEntry {
   available: string;
@@ -126,6 +122,15 @@ export default function SubmitForm({ therapist, adminAvailable }: { therapist: T
   const router = useRouter();
   const searchParams = useSearchParams();
   const autoEditHandled = useRef(false);
+
+  // ?week=YYYY-MM-DD (used by the overdue-reminder emails) opens the form on that week
+  const weekParam = searchParams.get("week");
+  useEffect(() => {
+    if (weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) && !searchParams.get("edit")) {
+      setWeekStart(localMondayOf(new Date(weekParam + "T12:00:00")));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekParam]);
 
   // Load submission history
   useEffect(() => {

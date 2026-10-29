@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const firstName = user.name?.split(" ")[0] || "there";
 
     const resend = new Resend(resendKey);
-    await resend.emails.send({
+    const { error: sendError } = await resend.emails.send({
       from: fromEmail,
       to: email,
       subject: "IPTA Dashboard — Password Reset",
@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
         </div>
       `,
     });
+    // Resend reports failures (e.g. unverified domain) as a returned error, not a throw.
+    // Still answer "success" so the form doesn't reveal which emails exist, but log it.
+    if (sendError) console.error("Password reset email failed:", sendError);
 
     return NextResponse.json({ success: true });
   } catch (error) {

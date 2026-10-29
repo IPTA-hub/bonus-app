@@ -34,3 +34,16 @@ export function consolidateWeeks<T extends { therapist_slug: string; week_start:
   }
   return Array.from(byKey.values());
 }
+
+// Monday (YYYY-MM-DD) of the week containing a date, using the viewer's LOCAL calendar
+// date. The old per-component helpers did setDate() and then toISOString(), which converts
+// to UTC and lands on Tuesday for anyone submitting in the evening in Mountain time. That
+// is what produced the Tuesday-dated weeks. A Sunday belongs to the week that just ended.
+export function localMondayOf(date: Date = new Date()): string {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dow = d.getDay();
+  d.setDate(d.getDate() - dow + (dow === 0 ? -6 : 1));
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}

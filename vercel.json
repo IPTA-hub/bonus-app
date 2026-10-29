@@ -3,6 +3,14 @@
     {
       "path": "/api/reminders",
       "schedule": "0 19 * * 5"
+    },
+    {
+      "path": "/api/reminders?mode=followup",
+      "schedule": "0 15 * * 1"
+    },
+    {
+      "path": "/api/reminders?mode=summary",
+      "schedule": "0 23 * * 1"
     }
   ]
 }

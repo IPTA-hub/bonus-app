@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { localMondayOf } from "@/lib/weeks";
 
-function getMondayOfWeek(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split("T")[0];
-}
+const getMondayOfWeek = localMondayOf;
 
 export default function WeeklyReminder({ slug }: { slug: string }) {
   const [hasSubmitted, setHasSubmitted] = useState<boolean | null>(null);

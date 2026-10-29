@@ -3,84 +3,77 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Submission } from "@/lib/db";
-import { mondayOf } from "@/lib/weeks";
+import { localMondayOf } from "@/lib/weeks";
+import { compareByLastName } from "@/lib/sortStaff";
+import {
+  expectedStaff,
+  lateHistory,
+  localTodayString,
+  previousWeekStart,
+  submittedSlugsForWeek,
+  type LateHistory,
+} from "@/lib/weeklyStatus";
 
-function getMondayOfWeek(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  return d.toISOString().split("T")[0];
-}
-
-interface MissingStaff {
+interface StaffEntry {
   name: string;
   slug: string;
   role: string;
   isClinicalDirector: boolean;
   isArchived?: boolean;
+  hireDate?: string;
+}
+
+type View = "this" | "last";
+
+function formatWeek(weekStart: string): string {
+  return new Date(weekStart + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 export default function MissingSubmissions() {
-  const [missing, setMissing] = useState<MissingStaff[]>([]);
-  const [submitted, setSubmitted] = useState<MissingStaff[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [staff, setStaff] = useState<StaffEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [reminderResult, setReminderResult] = useState<string | null>(null);
-  const currentMonday = getMondayOfWeek(new Date());
+
+  const today = localTodayString();
+  const currentMonday = localMondayOf(new Date());
+  const lastMonday = previousWeekStart(today);
+  // Early in the week the live question is "who still owes last week's numbers?"
+  const dow = new Date().getDay(); // 1 = Monday, 2 = Tuesday
+  const [view, setView] = useState<View>(dow === 1 || dow === 2 ? "last" : "this");
 
   useEffect(() => {
     Promise.all([
       fetch("/api/data").then((r) => r.json()),
       fetch("/api/admin/staff").then((r) => r.json()),
     ])
-      .then(([data, staffResp]: [Submission[], { staff?: MissingStaff[] }]) => {
-        // Archived (inactive) staff aren't expected to submit
-        const submittingStaff = (Array.isArray(staffResp?.staff) ? staffResp.staff : []).filter((t) => !t.isArchived);
-
-        if (!Array.isArray(data)) {
-          setMissing(submittingStaff);
-          return;
-        }
-
-        const submittedSlugs = new Set(
-          data
-            .filter((s) => {
-              // A submission dated Tuesday etc. still counts for its Monday week
-              const weekDate = mondayOf(new Date(s.week_start).toISOString());
-              return weekDate === currentMonday;
-            })
-            .map((s) => s.therapist_slug)
-        );
-
-        const missingList: MissingStaff[] = [];
-        const submittedList: MissingStaff[] = [];
-
-        for (const t of submittingStaff) {
-          const entry = {
-            name: t.name, slug: t.slug, role: t.role, isClinicalDirector: t.isClinicalDirector,
-          };
-          if (submittedSlugs.has(t.slug)) {
-            submittedList.push(entry);
-          } else {
-            missingList.push(entry);
-          }
-        }
-
-        setMissing(missingList);
-        setSubmitted(submittedList);
+      .then(([data, staffResp]: [Submission[], { staff?: StaffEntry[] }]) => {
+        setSubmissions(Array.isArray(data) ? data : []);
+        setStaff(Array.isArray(staffResp?.staff) ? staffResp.staff : []);
       })
       .catch(() => {
-        setMissing([]);
+        setSubmissions([]);
+        setStaff([]);
       })
       .finally(() => setLoading(false));
-  }, [currentMonday]);
+  }, []);
+
+  const weekStart = view === "last" ? lastMonday : currentMonday;
+  // Archived staff and anyone not yet hired that week aren't expected to submit
+  const expected = expectedStaff(staff, weekStart).sort(compareByLastName);
+  const submittedSlugs = submittedSlugsForWeek(submissions, weekStart);
+  const missing = expected.filter((t) => !submittedSlugs.has(t.slug));
+  const submitted = expected.filter((t) => submittedSlugs.has(t.slug));
+  const history: Record<string, LateHistory> = lateHistory(staff, submissions, today, Date.now());
 
   async function sendReminders() {
     setSendingReminders(true);
     setReminderResult(null);
     try {
-      const res = await fetch("/api/reminders?secret=initial-setup");
+      // Last week's follow-up uses your logged-in session; this week's keeps the original reminder
+      const url = view === "last" ? "/api/reminders?mode=followup" : "/api/reminders?secret=initial-setup";
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
         setReminderResult(`Sent ${data.sent} reminder email(s) to staff who haven't submitted.`);
@@ -105,10 +98,26 @@ export default function MissingSubmissions() {
   return (
     <div className="space-y-6">
       {/* Week header */}
-      <div className="flex flex-wrap items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">
-          Week of {new Date(currentMonday + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-        </h3>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Week of {formatWeek(weekStart)}</h3>
+          {view === "last" && (
+            <p className="text-xs text-gray-400 mt-0.5">Numbers are due by the end of the following Monday</p>
+          )}
+        </div>
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          {([["this", "This Week"], ["last", "Last Week"]] as [View, string][]).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => { setView(v); setReminderResult(null); }}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition min-h-[44px] ${
+                view === v ? "bg-ipta-teal text-white shadow-sm" : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-3 text-sm">
           <span className="text-green-600 font-medium">{submitted.length} submitted</span>
           <span className="text-red-600 font-medium">{missing.length} missing</span>
@@ -131,10 +140,10 @@ export default function MissingSubmissions() {
             disabled={sendingReminders}
             className="px-4 py-3 bg-ipta-teal text-white text-sm font-medium rounded-lg hover:bg-ipta-teal-light disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
-            {sendingReminders ? "Sending..." : `Email ${missing.length} Missing Staff`}
+            {sendingReminders ? "Sending..." : view === "last" ? "Email Overdue Follow-up Now" : `Email ${missing.length} Missing Staff`}
           </button>
           {reminderResult && (
-            <p className={`text-sm ${reminderResult.includes("Failed") ? "text-red-600" : "text-green-600"}`}>
+            <p className={`text-sm ${reminderResult.includes("Failed") || reminderResult.includes("Unauthorized") ? "text-red-600" : "text-green-600"}`}>
               {reminderResult}
             </p>
           )}
@@ -146,32 +155,46 @@ export default function MissingSubmissions() {
         <div className="bg-red-50 border border-red-200 rounded-xl overflow-hidden">
           <div className="px-4 py-3 bg-red-100">
             <h4 className="font-semibold text-red-900 text-sm">
-              Not Yet Submitted ({missing.length})
+              {view === "last" ? "Last Week Not Submitted" : "Not Yet Submitted"} ({missing.length})
             </h4>
           </div>
           <div className="divide-y divide-red-100">
-            {missing.map((s) => (
-              <div key={s.slug} className="px-4 py-2 flex flex-wrap items-center justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-gray-900 text-sm">{s.name}</span>
-                  <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-ipta-teal-50 text-ipta-teal">{s.role}</span>
-                  {s.isClinicalDirector && (
-                    <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">CD</span>
-                  )}
+            {missing.map((s) => {
+              const h = history[s.slug];
+              const lateCount = h ? h.late + h.missing : 0;
+              return (
+                <div key={s.slug} className="px-4 py-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-900 text-sm">{s.name}</span>
+                    <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-ipta-teal-50 text-ipta-teal">{s.role}</span>
+                    {s.isClinicalDirector && (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">CD</span>
+                    )}
+                    {h && lateCount > 0 && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-xs font-medium ${lateCount >= 3 ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"}`}
+                        title="Weeks submitted after the Monday deadline, or never submitted, among the last 8 completed weeks"
+                      >
+                        Late/missing {lateCount} of last {h.tracked} wks
+                      </span>
+                    )}
+                  </div>
+                  <Link
+                    href={`/submit/${s.slug}?week=${weekStart}`}
+                    className="text-sm text-ipta-teal hover:text-ipta-teal-light font-medium min-h-[44px] flex items-center"
+                  >
+                    Submit
+                  </Link>
                 </div>
-                <Link
-                  href={`/submit/${s.slug}`}
-                  className="text-sm text-ipta-teal hover:text-ipta-teal-light font-medium min-h-[44px] flex items-center"
-                >
-                  Submit
-                </Link>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-          <p className="text-green-800 font-medium">All staff have submitted this week!</p>
+          <p className="text-green-800 font-medium">
+            {view === "last" ? "All staff submitted last week!" : "All staff have submitted this week!"}
+          </p>
         </div>
       )}
 
