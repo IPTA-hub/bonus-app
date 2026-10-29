@@ -72,11 +72,17 @@ export async function GET(request: NextRequest) {
     const lastMonday = previousWeekStart(today);
 
     // All submissions and the full staff roster (hardcoded + staff added via Manage Staff)
-    const [submissions, customStaff, archivedSlugs] = await Promise.all([
+    const [rawSubmissions, customStaff, archivedSlugs] = await Promise.all([
       getAllSubmissions(),
       getAllCustomStaff(),
       getArchivedSlugs(),
     ]);
+    // The database driver returns real Date objects here; use ISO strings like the browser sees
+    const submissions = rawSubmissions.map((s) => ({
+      ...s,
+      week_start: new Date(s.week_start).toISOString(),
+      created_at: s.created_at ? new Date(s.created_at).toISOString() : s.created_at,
+    }));
     // Archived (inactive) staff shouldn't get emails
     const archivedSet = new Set(archivedSlugs);
     const allStaff: Therapist[] = [...THERAPISTS, ...customStaff.map(customStaffRowToTherapist)].filter(

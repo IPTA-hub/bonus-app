@@ -94,7 +94,7 @@ export function lateHistory(
       r.tracked++;
       const s = byKey.get(`${t.slug}|${week}`);
       if (!s) r.missing++;
-      else if (s.created_at && Date.parse(s.created_at) > due) r.late++;
+      else if (s.created_at && new Date(s.created_at).getTime() > due) r.late++;
     }
   }
   return result;

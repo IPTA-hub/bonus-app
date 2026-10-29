@@ -4,8 +4,9 @@
 
 // Returns the Monday (YYYY-MM-DD) of the week containing the given date. Sunday belongs
 // to the upcoming week, matching the rule used by the admin "fix week starts" tool.
-export function mondayOf(dateStr: string): string {
-  const day = String(dateStr).split("T")[0];
+export function mondayOf(dateStr: string | Date): string {
+  // Server-side database reads give real Date objects; the browser gets ISO strings
+  const day = (dateStr instanceof Date ? dateStr.toISOString() : String(dateStr)).split("T")[0];
   const d = new Date(day + "T00:00:00Z");
   const dow = d.getUTCDay(); // 0 = Sunday
   const offset = dow === 0 ? 1 : -(dow - 1);
