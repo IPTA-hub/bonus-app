@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 
 const ROLES = ["OTR", "COTA", "SLP", "MT", "PCC", "PCC-Asst", "Equine", "Marketing", "Director"];
-const ALL_LOCATIONS = ["Greeley", "Windsor", "Farm", "Home"];
+// Staff besides the directors who can be picked under "Reports To" (Taneal Behm, clinic owner)
+const REPORTS_TO_EXTRA_SLUGS = ["taneal-behm"];
+const ALL_LOCATIONS =["Greeley", "Windsor", "Farm", "Home"];
 
 interface StaffMember {
   slug: string;
@@ -150,7 +152,7 @@ export default function StaffManagementPage() {
   const archivedStaff = staff.filter((s) => s.isArchived);
   // Directors a staff member can report to (they receive that person's arrival-rate alerts)
   const directors = activeStaff
-    .filter((s) => s.isClinicalDirector || s.role === "Director" || s.hasDirectorAccess)
+    .filter((s) => s.isClinicalDirector || s.role === "Director" || s.hasDirectorAccess || REPORTS_TO_EXTRA_SLUGS.includes(s.slug))
     .map((s) => ({ slug: s.slug, name: s.name }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
