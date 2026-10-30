@@ -124,7 +124,10 @@ export function lowArrivalStreaks(
   staff: StaffLike[],
   submissions: SubmissionLike[],
   todayStr: string,
-  maxWeeks = 12
+  maxWeeks = 12,
+  // Overridable only so the dry-run test link can try other cutoffs
+  threshold = LOW_ARRIVAL_THRESHOLD,
+  minWeeks = LOW_ARRIVAL_MIN_WEEKS
 ): Record<string, LowArrival> {
   const byKey = new Map<string, SubmissionLike>();
   for (const s of consolidateWeeks(submissions)) {
@@ -141,10 +144,10 @@ export function lowArrivalStreaks(
       if (!s || !(sched > 0)) continue;
       const stored = s.arrival_rate === null || s.arrival_rate === undefined ? NaN : Number(s.arrival_rate);
       const rate = Number.isFinite(stored) ? stored : (Number(s.seen) || 0) / sched;
-      if (rate < LOW_ARRIVAL_THRESHOLD) weeks.push({ week, rate });
+      if (rate < threshold) weeks.push({ week, rate });
       else break;
     }
-    if (weeks.length >= LOW_ARRIVAL_MIN_WEEKS) result[t.slug] = { streak: weeks.length, weeks };
+    if (weeks.length >= minWeeks) result[t.slug] = { streak: weeks.length, weeks };
   }
   return result;
 }

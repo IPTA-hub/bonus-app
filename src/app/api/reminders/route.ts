@@ -131,7 +131,13 @@ export async function GET(request: NextRequest) {
       const nameOf = (slug: string) => allStaff.find((t) => t.slug === slug)?.name;
 
       // Arrival rate below 80% for 2+ weeks in a row
-      const streaks = lowArrivalStreaks(allStaff, submissions, today);
+      // &threshold=0.95 and &minweeks=1 only work together with &dry=1, so a test can
+      // never change what the real Monday email contains
+      const testThreshold = dryRun ? Number(request.nextUrl.searchParams.get("threshold")) : NaN;
+      const testMinWeeks = dryRun ? Number(request.nextUrl.searchParams.get("minweeks")) : NaN;
+      const useThreshold = testThreshold > 0 && testThreshold <= 1 ? testThreshold : LOW_ARRIVAL_THRESHOLD;
+      const useMinWeeks = Number.isInteger(testMinWeeks) && testMinWeeks >= 1 && testMinWeeks <= 6 ? testMinWeeks : LOW_ARRIVAL_MIN_WEEKS;
+      const streaks = lowArrivalStreaks(allStaff, submissions, today, 12, useThreshold, useMinWeeks);
       const flagged = allStaff
         .filter((t) => streaks[t.slug])
         .sort(compareByLastName)
@@ -191,6 +197,7 @@ export async function GET(request: NextRequest) {
           total_missing: missing.length,
           would_email: recipients.map((r) => ({ name: r.name, email: r.email, arrival_alerts: alertsFor(r).length })),
           missing: missing.map((t) => t.name),
+          alert_rule: { below: useThreshold, weeks_in_a_row: useMinWeeks },
           arrival_alerts: flagged.map((f) => ({
             name: f.t.name,
             streak: f.a.streak,
