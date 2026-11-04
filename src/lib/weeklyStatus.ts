@@ -108,6 +108,10 @@ export function lateHistory(
   return result;
 }
 
+// Arrival rate alerts only apply to these roles (OT, COTA, SLP, Music Therapy, and the
+// Director role); PCC, PCC Assistant, Equine and Marketing are never flagged.
+export const ALERT_ROLES = new Set(["OTR", "COTA", "SLP", "MT", "Director"]);
+
 export const LOW_ARRIVAL_THRESHOLD = 0.8;
 export const LOW_ARRIVAL_MIN_WEEKS = 2;
 
@@ -135,7 +139,7 @@ export function lowArrivalStreaks(
   }
   const result: Record<string, LowArrival> = {};
   for (const t of staff) {
-    if (t.isArchived) continue;
+    if (t.isArchived || !ALERT_ROLES.has(t.role)) continue;
     const weeks: { week: string; rate: number }[] = [];
     let week = previousWeekStart(todayStr);
     for (let i = 0; i < maxWeeks; i++, week = addDays(week, -7)) {
