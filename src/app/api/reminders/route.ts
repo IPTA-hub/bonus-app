@@ -4,6 +4,7 @@ import { getAllSubmissions, getAllCustomStaff, getArchivedSlugs, getAllSettingsO
 import { THERAPISTS, customStaffRowToTherapist, type Therapist } from "@/lib/therapists";
 import { compareByLastName } from "@/lib/sortStaff";
 import {
+  ALERT_ROLES,
   expectedStaff,
   lateHistory,
   lowArrivalStreaks,
@@ -112,7 +113,11 @@ export async function GET(request: NextRequest) {
     // ---------------- Monday end of day: summary to the directors ----------------
     if (mode === "summary") {
       const week = lastMonday;
-      const expected = expectedStaff(allStaff, week).sort(compareByLastName);
+      // The director summary only covers OT, COTA, SLP, Music Therapy and the Director role;
+      // PCC, PCC Assistant, Equine and Marketing aren't listed (or counted) here
+      const expected = expectedStaff(allStaff, week)
+        .filter((t) => ALERT_ROLES.has(t.role))
+        .sort(compareByLastName);
       const submitted = submittedSlugsForWeek(submissions, week);
       const missing = expected.filter((t) => !submitted.has(t.slug));
       const history = lateHistory(allStaff, submissions, today, Date.now());
