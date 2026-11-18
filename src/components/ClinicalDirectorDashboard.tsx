@@ -328,6 +328,14 @@ export default function ClinicalDirectorDashboard() {
             : calculateWeeklyTeamData(data, dir.directorLocation!))
           : [];
         const teamBonusTotal = teamData.reduce((a, w) => a + w.teamBonus, 0);
+        // A week with a manually entered "bonus paid" already holds what was actually paid
+        // (individual + team), so its calculated team bonus isn't added again to the YTD total
+        const adjustedWeeks = new Set(
+          subs.filter((s) => s.bonus_paid !== null && s.bonus_paid !== undefined).map((s) => s.week_start.split("T")[0])
+        );
+        const teamBonusCounted = teamData
+          .filter((w) => !adjustedWeeks.has(w.weekStart.split("T")[0]))
+          .reduce((a, w) => a + w.teamBonus, 0);
 
         // Retention data — prorated by actual time at location from submissions
         const retentionData = hasLocationTeam
@@ -343,7 +351,7 @@ export default function ClinicalDirectorDashboard() {
           <div key={dir.slug} className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Director Header */}
             {(() => {
-              const grandTotal = individualBonusTotal + teamBonusTotal;
+              const grandTotal = individualBonusTotal + teamBonusCounted;
               const cappedTotal = Math.min(grandTotal, CD_ANNUAL_CAP);
               const isNearCap = grandTotal >= CD_ANNUAL_CAP * 0.8;
               const isAtCap = grandTotal >= CD_ANNUAL_CAP;
@@ -364,6 +372,11 @@ export default function ClinicalDirectorDashboard() {
                       <p className={`text-xs ${isNearCap ? "text-amber-300" : "text-white/50"}`}>
                         ${CD_ANNUAL_CAP.toLocaleString()} annual cap &middot; ${Math.max(0, CD_ANNUAL_CAP - grandTotal).toFixed(0)} remaining
                       </p>
+                      {adjustedWeeks.size > 0 && (
+                        <p className="text-xs text-white/50">
+                          Includes {adjustedWeeks.size} manually adjusted week{adjustedWeeks.size === 1 ? "" : "s"}
+                        </p>
+                      )}
                     </div>
                   </div>
                   {/* Cap progress bar */}

@@ -17,11 +17,19 @@ import { getEquineStaffMembers, getYearsOfService } from "@/lib/therapists";
 export default function TherapistDashboard({
   therapist,
   userRole,
+  canEditBonus = false,
 }: {
   therapist: Therapist;
   userRole?: string;
+  canEditBonus?: boolean;
 }) {
   const [data, setData] = useState<Submission[]>([]);
+  // Manual "bonus paid" editing (admin / Nicole only)
+  const [editingBonus, setEditingBonus] = useState<string | null>(null); // week date being edited
+  const [bonusInput, setBonusInput] = useState("");
+  const [bonusNote, setBonusNote] = useState("");
+  const [savingBonus, setSavingBonus] = useState(false);
+  const [bonusError, setBonusError] = useState("");
   const [allData, setAllData] = useState<Submission[]>([]); // All clinic submissions for company bonus
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -104,6 +112,154 @@ export default function TherapistDashboard({
     const rate = totalSeen / totalSched;
     const bonus = calculatePatientArrivalBonus(rate, totalSched);
     return { rate, scheduled: totalSched, bonus };
+  }
+
+  // The week's bonus total as shown in Weekly History. A manually entered "bonus paid"
+  // replaces the calculated total; ignoreOverride gives the calculated figure instead.
+  function weekTotal(row: Submission, ignoreOverride = false): number {
+    const overridden = row.bonus_paid !== null && row.bonus_paid !== undefined;
+    if (overridden && !ignoreOverride) return Number(row.bonus_paid);
+    const base = overridden ? Number(row.calc_bonus_amount) || 0 : Number(row.bonus_amount);
+    const evalBonus = overridden ? Number(row.calc_eval_bonus) || 0 : Number(row.eval_bonus || 0);
+    const recruitBonus = overridden ? Number(row.calc_recruitment_bonus) || 0 : Number(row.recruitment_bonus || 0);
+    let total = base + (therapist.isClinicalDirector || isDirector ? 0 : evalBonus) + recruitBonus;
+    if (isDirector && row.scheduled) {
+      const compRate = getCompanyRateForWeek(row.week_start);
+      if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
+    }
+    if (isPCC && row.scheduled) {
+      const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
+      const locArr = getLocationArrivalForWeek(row.week_start, loc);
+      if (locArr) total += locArr.bonus;
+    }
+    if (isEquineDirector && row.scheduled) {
+      const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
+      if (farmArr) total += farmArr.bonus;
+    }
+    return total;
+  }
+
+  function startBonusEdit(row: Submission, weekDate: string) {
+    setEditingBonus(weekDate);
+    setBonusInput(weekTotal(row).toFixed(2));
+    setBonusNote(row.bonus_paid_note || "");
+    setBonusError("");
+  }
+
+  async function saveBonus(row: Submission, weekDate: string, clear: boolean) {
+    setSavingBonus(true);
+    setBonusError("");
+    try {
+      const res = await fetch("/api/admin/bonus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          therapist_slug: therapist.slug,
+          week_start: weekDate,
+          bonus_paid: clear ? null : bonusInput,
+          note: bonusNote,
+          calculated_total: weekTotal(row, true),
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to save");
+      // Reload so the cards, charts and totals all pick up the change
+      const fresh = await fetch(`/api/data?slug=${therapist.slug}`, { cache: "no-store" }).then((r) => r.json());
+      if (Array.isArray(fresh)) setData(fresh);
+      setEditingBonus(null);
+    } catch (err) {
+      setBonusError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSavingBonus(false);
+    }
+  }
+
+  // The bonus amount in Weekly History, with an "Edited" tag and (for editors) the
+  // calculated figure and an Adjust button
+  function bonusDisplay(row: Submission, weekDate: string, large = false) {
+    const total = weekTotal(row);
+    const overridden = row.bonus_paid !== null && row.bonus_paid !== undefined;
+    const calc = overridden ? weekTotal(row, true) : null;
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1.5">
+        <span className={large ? `text-lg font-bold ${total > 0 ? "text-green-700" : "text-gray-400"}` : ""}>
+          {total > 0 ? `$${total.toFixed(2)}` : "-"}
+        </span>
+        {overridden && (
+          <span
+            className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800"
+            title={
+              canEditBonus
+                ? `Calculated: $${(calc ?? 0).toFixed(2)}. Set by ${row.bonus_paid_by || "admin"}${row.bonus_paid_at ? ` on ${new Date(row.bonus_paid_at).toLocaleDateString("en-US")}` : ""}.${row.bonus_paid_note ? ` Note: ${row.bonus_paid_note}` : ""}`
+                : "This week's bonus was adjusted to match the amount paid"
+            }
+          >
+            Edited
+          </span>
+        )}
+        {overridden && canEditBonus && (
+          <span className="text-xs font-normal text-gray-400">calc ${(calc ?? 0).toFixed(2)}</span>
+        )}
+        {canEditBonus && (
+          <button
+            onClick={() => startBonusEdit(row, weekDate)}
+            className="text-xs font-medium text-ipta-teal hover:text-ipta-teal-light"
+          >
+            Adjust
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  function bonusEditor(row: Submission, weekDate: string) {
+    return (
+      <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-lg p-3 min-w-[220px] font-normal">
+        <label className="block text-xs font-medium text-gray-600">Bonus paid for this week ($)</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={bonusInput}
+          onChange={(e) => setBonusInput(e.target.value)}
+          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+        />
+        <p className="text-xs text-gray-400">Calculated: ${weekTotal(row, true).toFixed(2)}</p>
+        <input
+          type="text"
+          value={bonusNote}
+          maxLength={200}
+          onChange={(e) => setBonusNote(e.target.value)}
+          placeholder="Note (e.g. includes team bonus, annual review)"
+          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-ipta-teal focus:border-ipta-teal"
+        />
+        {bonusError && <p className="text-xs text-red-600">{bonusError}</p>}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => saveBonus(row, weekDate, false)}
+            disabled={savingBonus || bonusInput.trim() === ""}
+            className="px-3 py-1.5 text-xs font-semibold text-white bg-ipta-teal rounded-lg hover:bg-ipta-teal-light disabled:opacity-50"
+          >
+            {savingBonus ? "Saving..." : "Save"}
+          </button>
+          {row.bonus_paid !== null && row.bonus_paid !== undefined && (
+            <button
+              onClick={() => saveBonus(row, weekDate, true)}
+              disabled={savingBonus}
+              className="px-3 py-1.5 text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 disabled:opacity-50"
+            >
+              Reset to calculated
+            </button>
+          )}
+          <button
+            onClick={() => setEditingBonus(null)}
+            className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
   }
 
   async function handleDelete(weekDate: string) {
@@ -514,6 +670,17 @@ export default function TherapistDashboard({
           <h3 className="text-lg font-semibold text-gray-900 p-6 pb-3">
             Weekly History
           </h3>
+          {(() => {
+            const adjusted = data.filter((r) => r.bonus_paid !== null && r.bonus_paid !== undefined);
+            if (!canEditBonus || adjusted.length === 0) return null;
+            const paid = data.reduce((a, r) => a + weekTotal(r), 0);
+            const calc = data.reduce((a, r) => a + weekTotal(r, true), 0);
+            return (
+              <p className="px-6 pb-3 -mt-2 text-xs text-gray-500">
+                {adjusted.length} week{adjusted.length === 1 ? "" : "s"} manually adjusted. All weeks shown: ${paid.toFixed(2)} paid vs ${calc.toFixed(2)} calculated.
+              </p>
+            );
+          })()}
           {/* Mobile card view */}
           <div className="md:hidden space-y-3 p-4">
             {data
@@ -524,25 +691,6 @@ export default function TherapistDashboard({
                   .toISOString()
                   .split("T")[0];
                 const isDeleting = deleteConfirm === weekDate;
-
-                // Compute bonus total (same logic as table)
-                const bonusTotal = (() => {
-                  let total = Number(row.bonus_amount) + (therapist.isClinicalDirector || isDirector ? 0 : Number(row.eval_bonus || 0)) + Number(row.recruitment_bonus || 0);
-                  if (isDirector && row.scheduled) {
-                    const compRate = getCompanyRateForWeek(row.week_start);
-                    if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
-                  }
-                  if (isPCC && row.scheduled) {
-                    const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
-                    const locArr = getLocationArrivalForWeek(row.week_start, loc);
-                    if (locArr) total += locArr.bonus;
-                  }
-                  if (isEquineDirector && row.scheduled) {
-                    const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
-                    if (farmArr) total += farmArr.bonus;
-                  }
-                  return total;
-                })();
 
                 // PCC bonus data
                 let pccData: PCCBonusData = { reschedules_seen: 0, flex_seen: 0, eval_slots: 0, evals_filled: 0, clinic_cancellations: 0, reschedule_bonus: 0, eval_bonus: 0 };
@@ -591,10 +739,9 @@ export default function TherapistDashboard({
                           <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">PTO</span>
                         )}
                       </div>
-                      <span className={`text-lg font-bold ${bonusTotal > 0 ? "text-green-700" : "text-gray-400"}`}>
-                        {bonusTotal > 0 ? `$${bonusTotal.toFixed(2)}` : "-"}
-                      </span>
+                      {bonusDisplay(row, weekDate, true)}
                     </div>
+                    {canEditBonus && editingBonus === weekDate && bonusEditor(row, weekDate)}
 
                     {/* Key metrics grid */}
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1093,23 +1240,9 @@ export default function TherapistDashboard({
                           );
                         })()}
                         <td className="px-6 py-3 font-medium">
-                          {(() => {
-                            let total = Number(row.bonus_amount) + (therapist.isClinicalDirector || isDirector ? 0 : Number(row.eval_bonus || 0)) + Number(row.recruitment_bonus || 0);
-                            if (isDirector && row.scheduled) {
-                              const compRate = getCompanyRateForWeek(row.week_start);
-                              if (compRate !== null) total += calculateCompanyProductivityBonus(compRate);
-                            }
-                            if (isPCC && row.scheduled) {
-                              const loc = therapist.directorLocation || therapist.workLocations[0] || "Greeley";
-                              const locArr = getLocationArrivalForWeek(row.week_start, loc);
-                              if (locArr) total += locArr.bonus;
-                            }
-                            if (isEquineDirector && row.scheduled) {
-                              const farmArr = getLocationArrivalForWeek(row.week_start, "Farm");
-                              if (farmArr) total += farmArr.bonus;
-                            }
-                            return total > 0 ? `$${total.toFixed(2)}` : "-";
-                          })()}
+                          {canEditBonus && editingBonus === weekDate
+                            ? bonusEditor(row, weekDate)
+                            : bonusDisplay(row, weekDate)}
                         </td>
                         <td className="px-6 py-3 text-gray-500 max-w-48 truncate">
                           {row.notes || ""}

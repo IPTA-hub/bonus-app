@@ -5,6 +5,7 @@ import TherapistDashboard from "@/components/TherapistDashboard";
 import Link from "next/link";
 import { auth, type SessionWithRole } from "@/lib/auth";
 import type { Therapist } from "@/lib/therapists";
+import { canEditBonuses } from "@/lib/bonusEditors";
 
 function applyHoursOverride(therapist: Therapist, newHours: number): Therapist {
   const isFullTime = newHours >= 32;
@@ -75,7 +76,7 @@ export default async function TherapistDashboardPage({
             Submit Weekly Data
           </Link>
         </div>
-        <TherapistDashboard therapist={therapist} userRole={userRole} />
+        <TherapistDashboard therapist={therapist} userRole={userRole} canEditBonus={canEditBonuses(session)} />
       </div>
     </div>
   );

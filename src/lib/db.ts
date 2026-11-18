@@ -53,6 +53,25 @@ async function _runMigrations() {
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS recruitment_bonus DECIMAL(8,2) NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS role_bonus_data TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS pto_caseload_full BOOLEAN`;
+  // Manual "bonus paid" for a week (what actually went on the check). Kept in its own columns
+  // so re-submitting or recalculating a week never overwrites it.
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS bonus_paid DECIMAL(8,2)`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS bonus_paid_note TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS bonus_paid_by VARCHAR(200)`;
+  await sql`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS bonus_paid_at TIMESTAMP`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS bonus_adjustment_log (
+      id SERIAL PRIMARY KEY,
+      therapist_slug VARCHAR(100) NOT NULL,
+      week_start DATE NOT NULL,
+      previous_paid DECIMAL(8,2),
+      new_paid DECIMAL(8,2),
+      calculated_total DECIMAL(8,2),
+      note TEXT NOT NULL DEFAULT '',
+      changed_by VARCHAR(200),
+      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
   // Allow decimal values (e.g. 0.5) for scheduled and seen columns
   await sql`
     DO $$
@@ -272,6 +291,16 @@ export interface Submission {
   role_bonus_data: string; // JSON for PCC/Equine role-specific data
   pto_caseload_full: boolean | null; // During PTO: is caseload ≥90% full?
   created_at: string;
+  // Manual override of the week's bonus (what was actually paid). When set, bonus_amount
+  // already holds this value (eval/recruitment are zeroed) and the calc_* fields keep the
+  // originally calculated numbers.
+  bonus_paid?: number | null;
+  bonus_paid_note?: string;
+  bonus_paid_by?: string | null;
+  bonus_paid_at?: string | null;
+  calc_bonus_amount?: number | null;
+  calc_eval_bonus?: number;
+  calc_recruitment_bonus?: number;
 }
 
 // PCC role_bonus_data shape
@@ -331,17 +360,62 @@ export interface MarketingBonusData {
 // real numbers once here so every dashboard and calculation gets numbers.
 const SUBMISSION_NUMERIC_FIELDS = [
   "available", "scheduled", "seen", "arrival_rate", "utilization_rate",
-  "bonus_amount", "eval_bonus", "recruitment_bonus",
+  "bonus_amount", "eval_bonus", "recruitment_bonus", "bonus_paid",
   "evals_completed", "evals_with_dev_codes", "recruitment_hires", "recruitment_events",
 ] as const;
 
-function normalizeSubmission(row: Record<string, unknown>): Submission {
+export function normalizeSubmission(row: Record<string, unknown>): Submission {
   const out = { ...row };
   for (const f of SUBMISSION_NUMERIC_FIELDS) {
     const v = out[f];
     if (v !== null && v !== undefined) out[f] = Number(v);
   }
+  // A manually entered "bonus paid" replaces the calculated bonus everywhere the bonus is
+  // summed (dashboards, charts, clinic totals). The calculated values stay in calc_*.
+  if (out.bonus_paid !== null && out.bonus_paid !== undefined) {
+    out.calc_bonus_amount = out.bonus_amount as number | null;
+    out.calc_eval_bonus = Number(out.eval_bonus) || 0;
+    out.calc_recruitment_bonus = Number(out.recruitment_bonus) || 0;
+    out.bonus_amount = out.bonus_paid;
+    out.eval_bonus = 0;
+    out.recruitment_bonus = 0;
+  } else {
+    out.bonus_paid = null;
+  }
   return out as unknown as Submission;
+}
+
+// Saves (or clears, with null) the manually entered bonus paid for one week, and writes an
+// entry to the adjustment log. Returns false if that week has no submission.
+export async function setBonusPaid(data: {
+  therapist_slug: string;
+  week_start: string;
+  bonus_paid: number | null;
+  note: string;
+  changed_by: string;
+  calculated_total: number | null;
+}): Promise<boolean> {
+  const sql = getDb();
+  const existing = await sql`
+    SELECT bonus_paid FROM submissions
+    WHERE therapist_slug = ${data.therapist_slug} AND week_start = ${data.week_start}
+    LIMIT 1
+  `;
+  if (existing.length === 0) return false;
+  const previous = existing[0].bonus_paid === null || existing[0].bonus_paid === undefined ? null : Number(existing[0].bonus_paid);
+  await sql`
+    UPDATE submissions SET
+      bonus_paid = ${data.bonus_paid},
+      bonus_paid_note = ${data.bonus_paid === null ? "" : data.note},
+      bonus_paid_by = ${data.bonus_paid === null ? null : data.changed_by},
+      bonus_paid_at = ${data.bonus_paid === null ? null : new Date().toISOString()}
+    WHERE therapist_slug = ${data.therapist_slug} AND week_start = ${data.week_start}
+  `;
+  await sql`
+    INSERT INTO bonus_adjustment_log (therapist_slug, week_start, previous_paid, new_paid, calculated_total, note, changed_by)
+    VALUES (${data.therapist_slug}, ${data.week_start}, ${previous}, ${data.bonus_paid}, ${data.calculated_total}, ${data.note}, ${data.changed_by})
+  `;
+  return true;
 }
 
 export async function upsertSubmission(data: {
